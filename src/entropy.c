@@ -17,14 +17,16 @@
  * along with libentropy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "libentropy.h"
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
-#include <math.h>
 
 static void usage(const char *pname) {
 	fprintf(stdout, "Usage: %s <filename>\n", pname);
@@ -40,7 +42,8 @@ main(int argc, char *argv[])
 	long i;
 	unsigned long long frequency_table[256] = {0};
 	unsigned long long symbol_count = 0;
-	double entropy, p, logp;
+	double p, logp;
+	struct entropy_ctx ctx;
 	const long pagesize = sysconf(_SC_PAGESIZE);
 
 	if (argc != 2)
@@ -54,28 +57,19 @@ main(int argc, char *argv[])
 
 	/* Process one page of data at a time */
 	buf = malloc(pagesize);
+	memset(&ctx, 0, sizeof(struct entropy_ctx));
+	ctx.ec_algo = LIBENTROPY_ALGO_SHANNON;
 	do {
 		bytes_read = read(fd, buf, pagesize);
-		if (bytes_read) {
-			for (i = 0; i < bytes_read; i++)
-				frequency_table[((unsigned char*)buf)[i]]++;
-			symbol_count += bytes_read;
-		}
+		libentropy_update_ctx(&ctx, buf, bytes_read);
 	} while(bytes_read > 0);
 	free(buf);
 	close(fd);
 
 	/* Calculate entropy */
-	entropy = 0.0;
-	for (i = 0; i < 256; i++) {
-		/* Skip symbols with 0 frequency */
-		if (!frequency_table[i])
-			continue;
-		p = (double)frequency_table[i] / (double)symbol_count;
-		logp = log2(p);
-		entropy -= p * logp;
-	}
-	fprintf(stdout, "%f\n", entropy);
+	libentropy_calculate(&ctx);
+	if (ctx.ec_status == LIBENTROPY_STATUS_SUCCESS)
+		fprintf(stdout, "%f\n", ctx.ec_entropy);
 
 	return 0;
 }
