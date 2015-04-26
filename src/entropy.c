@@ -28,8 +28,11 @@
 #include <unistd.h>
 #include <errno.h>
 
+extern char *optarg;
+extern int opting, opterr, optopt;
+
 static void usage(const char *pname) {
-	fprintf(stdout, "Usage: %s <filename>\n", pname);
+	fprintf(stdout, "Usage: %s [-h] [filename]\n", pname);
 	exit(-1);
 }
 
@@ -44,15 +47,22 @@ main(int argc, char *argv[])
 	unsigned long long symbol_count = 0;
 	double p, logp;
 	struct entropy_ctx ctx;
+	int c;
 	const long pagesize = sysconf(_SC_PAGESIZE);
 
-	if (argc != 2)
-		usage(argv[0]);
+	while ((c = getopt(argc, argv, "h")) != -1) {
+		switch (c) {
+		case 'h':
+		default:
+			usage(argv[0]);
+		};
+	}
 
-	if (!strncmp(argv[1], "-", 1))
+	if ((optind == argc) ||
+		((optind < argc) && (!strncmp(argv[optind], "-", 1))))
 		fd = STDIN_FILENO;
 	else
-		fd = open(argv[1], O_RDONLY);
+		fd = open(argv[optind++], O_RDONLY);
 	if (fd == -1) {
 		perror("Cannot open file");
 		return errno;
