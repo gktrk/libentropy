@@ -33,7 +33,8 @@ extern char *optarg;
 extern int opting, opterr, optopt;
 
 static void usage(const char *pname) {
-	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [filename]\n", pname);
+	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [-l file size limit]"
+		" [filename]\n", pname);
 	exit(-1);
 }
 
@@ -50,13 +51,14 @@ main(int argc, char *argv[])
 	unsigned long long offset = 0;
 	unsigned long long remaining = 0;
 	unsigned long long read_size;
+	unsigned long long file_size_limit = 0;
 	double p, logp;
 	struct entropy_ctx ctx;
 	int c;
 	char *tmp;
 	const long pagesize = sysconf(_SC_PAGESIZE);
 
-	while ((c = getopt(argc, argv, "b:h")) != -1) {
+	while ((c = getopt(argc, argv, "b:hl:")) != -1) {
 		switch (c) {
 		case 'b':
 			blocksize = strtoull(optarg, &tmp, 0);
@@ -76,6 +78,27 @@ main(int argc, char *argv[])
 			 */
 			if ((blocksize == ULLONG_MAX)) {
 				perror("Invalid blocksize");
+				usage(argv[0]);
+			}
+			break;
+		case 'l':
+			file_size_limit = strtoull(optarg, &tmp, 0);
+			/*
+			 * if optarg is '\0', no number is specified
+			 * if (*tmp) isn't '\0', then stroull() found an
+			 *   invalid character in the string
+			 */
+			if ((optarg[0] == '\0') || (*tmp != '\0')) {
+				fprintf(stderr, "Invalid file size limit: %s\n",
+					optarg);
+				usage(argv[0]);
+			}
+			/*
+			 * if return value is ULLONG_MAX and errno is
+			 *   set to ERANGE, overflow happened
+			 */
+			if ((blocksize == ULLONG_MAX)) {
+				perror("Invalid file size limit");
 				usage(argv[0]);
 			}
 			break;
@@ -100,6 +123,9 @@ main(int argc, char *argv[])
 	memset(&ctx, 0, sizeof(struct entropy_ctx));
 	ctx.ec_algo = LIBENTROPY_ALGO_SHANNON;
 	do {
+		/* If we hit the file size limit, break out of loop */
+		if ((file_size_limit) && (offset == file_size_limit))
+			break;
 		/* Reset remaining at the start of each fresh block */
 		if (blocksize && !remaining)
 			remaining = blocksize;
@@ -108,13 +134,20 @@ main(int argc, char *argv[])
 			read_size = remaining;
 		else
 			read_size = pagesize;
+		/*
+		 * Take file size limit into account
+		 *
+		 * If the next read will end up reading more than
+		 * what we want, adjust the read size properly
+		 */
+		if ((offset + read_size) > file_size_limit)
+			bytes_read -= offset % file_size_limit;
 		/* Read data */
 		bytes_read = read(fd, buf, read_size);
 		/* Get some bookkeeping done */
-		if (blocksize) {
+		if (blocksize)
 			remaining -= bytes_read;
-			offset += bytes_read;
-		}
+		offset += bytes_read;
 
 		/* Update frequencies etc. */
 		libentropy_update_ctx(&ctx, buf, bytes_read);
