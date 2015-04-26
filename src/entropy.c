@@ -70,8 +70,6 @@ main(int argc, char *argv[])
 	void *buf;
 	size_t bytes_read = 0;
 	long i;
-	unsigned long long frequency_table[256] = {0};
-	unsigned long long symbol_count = 0;
 	unsigned long long blocksize = 0;
 	unsigned long long offset = 0;
 	unsigned long long remaining = 0;
