@@ -38,6 +38,29 @@ static void usage(const char *pname) {
 	exit(-1);
 }
 
+static unsigned long long parse_ull(const char *str, int *err)
+{
+	unsigned long long ret;
+	char *tmp;
+
+	ret = strtoull(str, &tmp, 0);
+	/*
+	 * if str is '\0', no number is specified
+	 * if (*tmp) isn't '\0', then stroull() found an
+	 *   invalid character in the string
+	 */
+	if ((str[0] == '\0') || (*tmp != '\0'))
+		*err = -EINVAL;
+	/*
+	 * if return value is ULLONG_MAX and errno is
+	 *   set to ERANGE, overflow happened
+	 */
+	if ((ret == ULLONG_MAX))
+		*err = -ERANGE;
+	*err = 0;
+	return ret;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -54,51 +77,25 @@ main(int argc, char *argv[])
 	unsigned long long file_size_limit = 0;
 	double p, logp;
 	struct entropy_ctx ctx;
-	int c;
-	char *tmp;
+	int c, err;
 	const long pagesize = sysconf(_SC_PAGESIZE);
 
 	while ((c = getopt(argc, argv, "b:hl:")) != -1) {
 		switch (c) {
 		case 'b':
-			blocksize = strtoull(optarg, &tmp, 0);
-			/*
-			 * if optarg is '\0', no number is specified
-			 * if (*tmp) isn't '\0', then stroull() found an
-			 *   invalid character in the string
-			 */
-			if ((optarg[0] == '\0') || (*tmp != '\0')) {
-				fprintf(stderr, "Invalid blocksize: %s\n",
-					optarg);
-				usage(argv[0]);
-			}
-			/*
-			 * if return value is ULLONG_MAX and errno is
-			 *   set to ERANGE, overflow happened
-			 */
-			if ((blocksize == ULLONG_MAX)) {
-				perror("Invalid blocksize");
+			blocksize = parse_ull(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid blocksize (%s): %s\n",
+					optarg, strerror(err));
 				usage(argv[0]);
 			}
 			break;
 		case 'l':
-			file_size_limit = strtoull(optarg, &tmp, 0);
-			/*
-			 * if optarg is '\0', no number is specified
-			 * if (*tmp) isn't '\0', then stroull() found an
-			 *   invalid character in the string
-			 */
-			if ((optarg[0] == '\0') || (*tmp != '\0')) {
-				fprintf(stderr, "Invalid file size limit: %s\n",
-					optarg);
-				usage(argv[0]);
-			}
-			/*
-			 * if return value is ULLONG_MAX and errno is
-			 *   set to ERANGE, overflow happened
-			 */
-			if ((blocksize == ULLONG_MAX)) {
-				perror("Invalid file size limit");
+			file_size_limit = parse_ull(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid file size limit (%s):"
+					" %s\n",
+					optarg, strerror(err));
 				usage(argv[0]);
 			}
 			break;
