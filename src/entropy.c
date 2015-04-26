@@ -17,6 +17,8 @@
  * along with libentropy.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _LARGEFILE64_SOURCE
+
 #include "libentropy.h"
 
 #include <stdio.h>
@@ -34,7 +36,7 @@ extern int opting, opterr, optopt;
 
 static void usage(const char *pname) {
 	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [-l file size limit]"
-		" [filename]\n", pname);
+		" [-s skip offset] [filename]\n", pname);
 	exit(-1);
 }
 
@@ -75,12 +77,13 @@ main(int argc, char *argv[])
 	unsigned long long remaining = 0;
 	unsigned long long read_size;
 	unsigned long long file_size_limit = 0;
+	unsigned long long skip_offset = 0;
 	double p, logp;
 	struct entropy_ctx ctx;
 	int c, err;
 	const long pagesize = sysconf(_SC_PAGESIZE);
 
-	while ((c = getopt(argc, argv, "b:hl:")) != -1) {
+	while ((c = getopt(argc, argv, "b:hl:s:")) != -1) {
 		switch (c) {
 		case 'b':
 			blocksize = parse_ull(optarg, &err);
@@ -94,6 +97,15 @@ main(int argc, char *argv[])
 			file_size_limit = parse_ull(optarg, &err);
 			if (err) {
 				fprintf(stderr, "Invalid file size limit (%s):"
+					" %s\n",
+					optarg, strerror(err));
+				usage(argv[0]);
+			}
+			break;
+		case 's':
+			skip_offset = parse_ull(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid skip offset (%s):"
 					" %s\n",
 					optarg, strerror(err));
 				usage(argv[0]);
@@ -113,6 +125,16 @@ main(int argc, char *argv[])
 	if (fd == -1) {
 		perror("Cannot open file");
 		return errno;
+	}
+
+	/* Handle skip offset */
+	if (skip_offset) {
+		err = (int)lseek64(fd, skip_offset, SEEK_CUR);
+		if (err == -1) {
+			perror("Cannot seek in file");
+			return errno;
+		}
+		offset = skip_offset;
 	}
 
 	/* Process one page of data at a time */
