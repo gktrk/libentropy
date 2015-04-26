@@ -27,12 +27,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <limits.h>
 
 extern char *optarg;
 extern int opting, opterr, optopt;
 
 static void usage(const char *pname) {
-	fprintf(stdout, "Usage: %s [-h] [filename]\n", pname);
+	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [filename]\n", pname);
 	exit(-1);
 }
 
@@ -45,13 +46,39 @@ main(int argc, char *argv[])
 	long i;
 	unsigned long long frequency_table[256] = {0};
 	unsigned long long symbol_count = 0;
+	unsigned long long blocksize = 0;
+	unsigned long long offset = 0;
+	unsigned long long remaining = 0;
+	unsigned long long read_size;
 	double p, logp;
 	struct entropy_ctx ctx;
 	int c;
+	char *tmp;
 	const long pagesize = sysconf(_SC_PAGESIZE);
 
-	while ((c = getopt(argc, argv, "h")) != -1) {
+	while ((c = getopt(argc, argv, "b:h")) != -1) {
 		switch (c) {
+		case 'b':
+			blocksize = strtoull(optarg, &tmp, 0);
+			/*
+			 * if optarg is '\0', no number is specified
+			 * if (*tmp) isn't '\0', then stroull() found an
+			 *   invalid character in the string
+			 */
+			if ((optarg[0] == '\0') || (*tmp != '\0')) {
+				fprintf(stderr, "Invalid blocksize: %s\n",
+					optarg);
+				usage(argv[0]);
+			}
+			/*
+			 * if return value is ULLONG_MAX and errno is
+			 *   set to ERANGE, overflow happened
+			 */
+			if ((blocksize == ULLONG_MAX)) {
+				perror("Invalid blocksize");
+				usage(argv[0]);
+			}
+			break;
 		case 'h':
 		default:
 			usage(argv[0]);
@@ -73,16 +100,55 @@ main(int argc, char *argv[])
 	memset(&ctx, 0, sizeof(struct entropy_ctx));
 	ctx.ec_algo = LIBENTROPY_ALGO_SHANNON;
 	do {
-		bytes_read = read(fd, buf, pagesize);
+		/* Reset remaining at the start of each fresh block */
+		if (blocksize && !remaining)
+			remaining = blocksize;
+		/* Determine read size */
+		if ((blocksize) && (remaining < pagesize))
+			read_size = remaining;
+		else
+			read_size = pagesize;
+		/* Read data */
+		bytes_read = read(fd, buf, read_size);
+		/* Get some bookkeeping done */
+		if (blocksize) {
+			remaining -= bytes_read;
+			offset += bytes_read;
+		}
+
+		/* Update frequencies etc. */
 		libentropy_update_ctx(&ctx, buf, bytes_read);
+
+		/*
+		 * If we are done with the block, calculate its entropy
+		 * and print it.
+		 */
+		if (blocksize && !remaining) {
+			libentropy_calculate(&ctx);
+			if (ctx.ec_status == LIBENTROPY_STATUS_SUCCESS) {
+				fprintf(stdout, "%llu, %f\n", offset,
+					ctx.ec_entropy);
+				memset(&ctx, 0, sizeof(struct entropy_ctx));
+			} else {
+				fprintf(stderr, "%s():%d: %s: %d\n",
+					__func__, __LINE__,
+					"Entropy calculation failed",
+					ctx.ec_status);
+				free(buf);
+				close(fd);
+				return -1;
+			}
+		}
 	} while(bytes_read > 0);
 	free(buf);
 	close(fd);
 
 	/* Calculate entropy */
-	libentropy_calculate(&ctx);
-	if (ctx.ec_status == LIBENTROPY_STATUS_SUCCESS)
-		fprintf(stdout, "%f\n", ctx.ec_entropy);
+	if (!blocksize) {
+		libentropy_calculate(&ctx);
+		if (ctx.ec_status == LIBENTROPY_STATUS_SUCCESS)
+			fprintf(stdout, "%f\n", ctx.ec_entropy);
+	}
 
 	return 0;
 }
