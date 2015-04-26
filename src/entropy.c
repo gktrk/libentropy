@@ -49,7 +49,10 @@ main(int argc, char *argv[])
 	if (argc != 2)
 		usage(argv[0]);
 
-	fd = open(argv[1], O_RDONLY);
+	if (!strncmp(argv[1], "-", 1))
+		fd = STDIN_FILENO;
+	else
+		fd = open(argv[1], O_RDONLY);
 	if (fd == -1) {
 		perror("Cannot open file");
 		return errno;
