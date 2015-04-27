@@ -19,6 +19,7 @@
 
 #define _LARGEFILE64_SOURCE
 
+#include "config.h"
 #include "libentropy.h"
 
 #include <stdio.h>
@@ -125,7 +126,6 @@ main(int argc, char *argv[])
 		perror("Cannot open file");
 		return errno;
 	}
-
 	/* Handle skip offset */
 	if (skip_offset) {
 		err = (int)lseek64(fd, skip_offset, SEEK_CUR);
@@ -135,6 +135,11 @@ main(int argc, char *argv[])
 		}
 		offset = skip_offset;
 	}
+
+#ifdef HAVE_POSIX_FADVISE
+	/* Advise kernel that we will be reading sequantially */
+	posix_fadvise(fd, skip_offset, 0, POSIX_FADV_SEQUENTIAL);
+#endif
 
 	/* Process one page of data at a time */
 	buf = malloc(pagesize);

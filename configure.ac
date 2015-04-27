@@ -23,6 +23,7 @@ AC_TYPE_SIZE_T
 AC_FUNC_MALLOC
 AC_SEARCH_LIBS([log2], [m])
 AC_SEARCH_LIBS([isnormal], [m])
+AC_CHECK_FUNCS([posix_fadvise])
 
 AC_CONFIG_FILES([Makefile
                  lib/Makefile
