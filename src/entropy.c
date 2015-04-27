@@ -35,7 +35,7 @@ extern char *optarg;
 extern int opting, opterr, optopt;
 
 static void usage(const char *pname) {
-	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [-l file size limit]"
+	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [-l size limit]"
 		" [-s skip offset] [filename]\n", pname);
 	exit(-1);
 }
@@ -69,12 +69,13 @@ main(int argc, char *argv[])
 	int fd;
 	void *buf;
 	size_t bytes_read = 0;
+	size_t total_bytes_read = 0;
 	long i;
 	unsigned long long blocksize = 0;
 	unsigned long long offset = 0;
 	unsigned long long remaining = 0;
 	unsigned long long read_size;
-	unsigned long long file_size_limit = 0;
+	unsigned long long size_limit = 0;
 	unsigned long long skip_offset = 0;
 	double p, logp;
 	struct entropy_ctx ctx;
@@ -92,9 +93,9 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 'l':
-			file_size_limit = parse_ull(optarg, &err);
+			size_limit = parse_ull(optarg, &err);
 			if (err) {
-				fprintf(stderr, "Invalid file size limit (%s):"
+				fprintf(stderr, "Invalid size limit (%s):"
 					" %s\n",
 					optarg, strerror(err));
 				usage(argv[0]);
@@ -141,7 +142,7 @@ main(int argc, char *argv[])
 	ctx.ec_algo = LIBENTROPY_ALGO_SHANNON;
 	do {
 		/* If we hit the file size limit, break out of loop */
-		if ((file_size_limit) && (offset == file_size_limit))
+		if ((size_limit) && (total_bytes_read >= size_limit))
 			break;
 		/* Reset remaining at the start of each fresh block */
 		if (blocksize && !remaining)
@@ -152,19 +153,22 @@ main(int argc, char *argv[])
 		else
 			read_size = pagesize;
 		/*
-		 * Take file size limit into account
+		 * Take size limit into account
 		 *
 		 * If the next read will end up reading more than
 		 * what we want, adjust the read size properly
 		 */
-		if ((offset + read_size) > file_size_limit)
-			bytes_read -= offset % file_size_limit;
+		if ((size_limit) &&
+			((total_bytes_read + read_size) > size_limit))
+			read_size -= (total_bytes_read + read_size) %
+				size_limit;
 		/* Read data */
 		bytes_read = read(fd, buf, read_size);
 		/* Get some bookkeeping done */
 		if (blocksize)
 			remaining -= bytes_read;
 		offset += bytes_read;
+		total_bytes_read += bytes_read;
 
 		/* Update frequencies etc. */
 		libentropy_update_ctx(&ctx, buf, bytes_read);
