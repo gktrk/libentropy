@@ -36,7 +36,7 @@ static double shannon_entropy(unsigned long long freq_table[256],
 		logp = log2(p);
 		entropy -= p * logp;
 	}
-	if (isnormal(entropy))
+	if (isfinite(entropy))
 		*err = LIBENTROPY_STATUS_SUCCESS;
 	else
 		*err = LIBENTROPY_STATUS_FP_ERROR;
