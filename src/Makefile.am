@@ -1,3 +1,4 @@
+AM_LDFLAGS = -Wl,--as-needed
 bin_PROGRAMS = entropy e2ntropy
 entropy_SOURCES = entropy.c
 entropy_LDADD = ../lib/libentropy.la @LIBS@
