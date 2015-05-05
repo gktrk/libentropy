@@ -23,7 +23,7 @@ AC_TYPE_SIZE_T
 AC_FUNC_MALLOC
 AC_SEARCH_LIBS([log2], [m])
 AC_SEARCH_LIBS([isnormal], [m])
-AC_CHECK_FUNCS([posix_fadvise])
+AC_CHECK_FUNCS([posix_fadvise lseek64])
 AC_SEARCH_LIBS([ext2fs_open], [ext2fs])
 
 AC_CONFIG_FILES([Makefile

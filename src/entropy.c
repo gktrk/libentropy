@@ -128,7 +128,11 @@ main(int argc, char *argv[])
 	}
 	/* Handle skip offset */
 	if (skip_offset) {
+#if HAVE_LSEEK64
 		err = (int)lseek64(fd, skip_offset, SEEK_CUR);
+#else
+		err = (int)lseek(fd, skip_offset, SEEK_CUR);
+#endif
 		if (err == -1) {
 			perror("Cannot seek in file");
 			return errno;
