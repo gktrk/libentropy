@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.68])
+AC_PREREQ([2.61])
 AC_INIT([libentropy], [0.0.1], [gokturk@binghamton.edu])
 AC_CONFIG_SRCDIR([src/entropy.c])
 AC_CONFIG_HEADERS([include/config.h])
