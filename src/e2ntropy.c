@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
 	char *block_bitmap = NULL, *buf = NULL;
 	char *device_path;
 	blk64_t block, block_itr, j;
+	blk64_t max_blocks;
 	int block_nbytes;
 	struct entropy_ctx ctx;
 	unsigned long i;
@@ -60,6 +61,12 @@ int main(int argc, char *argv[])
 	if (err) {
 		fprintf(stderr, "Unable to open device: ", device_path);
 		return err;
+	}
+	/* Determine maximum number of possbile blocks */
+	err = ext2fs_get_device_size2(device_path, fs->blocksize, &max_blocks);
+	if (err) {
+		fprintf(stderr, "Unable to get device size: %s\n", device_path);
+		goto out;
 	}
 	/* Determine first data block */
 	block_itr = EXT2FS_B2C(fs, fs->super->s_first_data_block);
@@ -110,8 +117,10 @@ int main(int argc, char *argv[])
 		 * the entropy of unused blocks
 		 */
 		for (j = 0; j < fs->super->s_clusters_per_group << 3; j++) {
+			block = (i * fs->super->s_clusters_per_group) + j;
+			if (block >= max_blocks)
+				break;
 			if (!in_use(block_bitmap, j)) {
-				block = (i * fs->super->s_clusters_per_group) + j;
 				err = io_channel_read_blk64(fs->io, block,
 							1, buf);
 				if (err) {
