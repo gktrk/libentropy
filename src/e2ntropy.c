@@ -23,8 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define in_use(m, x)	(ext2fs_test_bit ((x), (m)))
-
 static inline int ext2fs_has_group_desc_csum(ext2_filsys fs)
 {
         return EXT2_HAS_RO_COMPAT_FEATURE(fs->super,
@@ -43,9 +41,9 @@ int main(int argc, char *argv[])
 	ext2_filsys fs = NULL;
 	int flags = EXT2_FLAG_64BITS | EXT2_FLAG_JOURNAL_DEV_OK;
 	int bg_flags = 0;
-	char *block_bitmap = NULL, *buf = NULL;
+	char *buf = NULL;
 	char *device_path;
-	blk64_t block, block_itr, j;
+	blk64_t block, j;
 	blk64_t max_blocks;
 	int block_nbytes;
 	struct entropy_ctx ctx;
@@ -68,14 +66,10 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Unable to get device size: %s\n", device_path);
 		goto out;
 	}
-	/* Determine first data block */
-	block_itr = EXT2FS_B2C(fs, fs->super->s_first_data_block);
 	/* Read the block bitmaps into memory */
 	ext2fs_read_block_bitmap(fs);
 	/* Bytes needed for the block bitmap of a group */
 	block_nbytes = EXT2_CLUSTERS_PER_GROUP(fs->super) / 8;
-	/* Allocate space for per-group block bitmaps */
-	block_bitmap = malloc(block_nbytes);
 	/*
 	 * Allocate space to hold unallocated file system
 	 * blocks for entropy calculation
@@ -102,25 +96,15 @@ int main(int argc, char *argv[])
 			bg_flags = ext2fs_bg_flags(fs, i);
 		if ((bg_flags & EXT2_BG_BLOCK_UNINIT) == EXT2_BG_BLOCK_UNINIT)
 			continue;
-		/* Read the group's block bitmap */
-		err = ext2fs_get_block_bitmap_range2(fs->block_map, block_itr,
-						block_nbytes << 3,
-						block_bitmap);
-		if (err) {
-			fprintf(stderr, "Unable to get block bitmap range"
-				" (%llu - %llu): Aborting.", block_itr,
-				block_itr + fs->super->s_clusters_per_group);
-			goto out;
-		}
 		/*
 		 * Iterate over the block bitmap and calculate
 		 * the entropy of unused blocks
 		 */
-		for (j = 0; j < fs->super->s_clusters_per_group << 3; j++) {
+		for (j = 0; j < fs->super->s_clusters_per_group; j++) {
 			block = (i * fs->super->s_clusters_per_group) + j;
 			if (block >= max_blocks)
 				break;
-			if (!in_use(block_bitmap, j)) {
+			if (!ext2fs_test_block_bitmap2(fs->block_map, block)) {
 				err = io_channel_read_blk64(fs->io, block,
 							1, buf);
 				if (err) {
@@ -136,12 +120,10 @@ int main(int argc, char *argv[])
 					block, ctx.ec_entropy);
 			}
 		}
-		block_itr += fs->super->s_clusters_per_group;
 	}
 
 out:
 	free(buf);
-	free(block_bitmap);
 	ext2fs_close(fs);
 	return err;
 }
