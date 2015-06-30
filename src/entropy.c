@@ -211,16 +211,23 @@ main(int argc, char *argv[])
 	}
 
 	if ((optind == argc) ||
-		((optind < argc) && (!strncmp(argv[optind], "-", 1))))
+		((optind < argc) && (!strncmp(argv[optind], "-", 1)))) {
 		fd = STDIN_FILENO;
-	else
-		fd = open(argv[optind++], O_RDONLY);
-	if (fd == -1) {
-		perror("Cannot open file");
-		return errno;
+		err = process_file(fd, blocksize, size_limit, skip_offset);
+		close(fd);
+		return err;
+	} else {
+		do {
+			fd = open(argv[optind++], O_RDONLY);
+			if (fd == -1) {
+				perror("Cannot open file");
+				return errno;
+			}
+			err = process_file(fd, blocksize, size_limit, skip_offset);
+			close(fd);
+			if (err)
+			return err;
+		} while (optind < argc);
 	}
-
-	err = process_file(fd, blocksize, size_limit, skip_offset);
-	close(fd);
-	return err;
+	return 0;
 }
