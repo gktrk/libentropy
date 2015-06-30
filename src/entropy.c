@@ -71,14 +71,12 @@ main(int argc, char *argv[])
 	void *buf;
 	size_t bytes_read = 0;
 	size_t total_bytes_read = 0;
-	long i;
 	unsigned long long blocksize = 0;
 	unsigned long long offset = 0;
 	unsigned long long remaining = 0;
 	unsigned long long read_size;
 	unsigned long long size_limit = 0;
 	unsigned long long skip_offset = 0;
-	double p, logp;
 	struct entropy_ctx ctx;
 	int c, err;
 	const long pagesize = sysconf(_SC_PAGESIZE);
