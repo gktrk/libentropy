@@ -64,66 +64,20 @@ static unsigned long long parse_ull(const char *str, int *err)
 	return ret;
 }
 
-int
-main(int argc, char *argv[])
+static int process_file(int fd, unsigned long long blocksize,
+			unsigned long long size_limit,
+			unsigned long long skip_offset)
 {
-	int fd;
+	struct entropy_ctx ctx;
 	void *buf;
 	size_t bytes_read = 0;
 	size_t total_bytes_read = 0;
-	unsigned long long blocksize = 0;
 	unsigned long long offset = 0;
 	unsigned long long remaining = 0;
 	unsigned long long read_size;
-	unsigned long long size_limit = 0;
-	unsigned long long skip_offset = 0;
-	struct entropy_ctx ctx;
-	int c, err;
+	int err;
 	const long pagesize = sysconf(_SC_PAGESIZE);
 
-	while ((c = getopt(argc, argv, "b:hl:s:")) != -1) {
-		switch (c) {
-		case 'b':
-			blocksize = parse_ull(optarg, &err);
-			if (err) {
-				fprintf(stderr, "Invalid blocksize (%s): %s\n",
-					optarg, strerror(err));
-				usage(argv[0]);
-			}
-			break;
-		case 'l':
-			size_limit = parse_ull(optarg, &err);
-			if (err) {
-				fprintf(stderr, "Invalid size limit (%s):"
-					" %s\n",
-					optarg, strerror(err));
-				usage(argv[0]);
-			}
-			break;
-		case 's':
-			skip_offset = parse_ull(optarg, &err);
-			if (err) {
-				fprintf(stderr, "Invalid skip offset (%s):"
-					" %s\n",
-					optarg, strerror(err));
-				usage(argv[0]);
-			}
-			break;
-		case 'h':
-		default:
-			usage(argv[0]);
-		};
-	}
-
-	if ((optind == argc) ||
-		((optind < argc) && (!strncmp(argv[optind], "-", 1))))
-		fd = STDIN_FILENO;
-	else
-		fd = open(argv[optind++], O_RDONLY);
-	if (fd == -1) {
-		perror("Cannot open file");
-		return errno;
-	}
 	/* Handle skip offset */
 	if (skip_offset) {
 #if HAVE_LSEEK64
@@ -202,7 +156,6 @@ main(int argc, char *argv[])
 		}
 	} while(bytes_read > 0);
 	free(buf);
-	close(fd);
 
 	/* Calculate entropy */
 	if (!blocksize) {
@@ -212,4 +165,62 @@ main(int argc, char *argv[])
 	}
 
 	return 0;
+}
+
+int
+main(int argc, char *argv[])
+{
+	int fd;
+	unsigned long long blocksize = 0;
+	unsigned long long size_limit = 0;
+	unsigned long long skip_offset = 0;
+	int c, err;
+
+	while ((c = getopt(argc, argv, "b:hl:s:")) != -1) {
+		switch (c) {
+		case 'b':
+			blocksize = parse_ull(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid blocksize (%s): %s\n",
+					optarg, strerror(err));
+				usage(argv[0]);
+			}
+			break;
+		case 'l':
+			size_limit = parse_ull(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid size limit (%s):"
+					" %s\n",
+					optarg, strerror(err));
+				usage(argv[0]);
+			}
+			break;
+		case 's':
+			skip_offset = parse_ull(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid skip offset (%s):"
+					" %s\n",
+					optarg, strerror(err));
+				usage(argv[0]);
+			}
+			break;
+		case 'h':
+		default:
+			usage(argv[0]);
+		};
+	}
+
+	if ((optind == argc) ||
+		((optind < argc) && (!strncmp(argv[optind], "-", 1))))
+		fd = STDIN_FILENO;
+	else
+		fd = open(argv[optind++], O_RDONLY);
+	if (fd == -1) {
+		perror("Cannot open file");
+		return errno;
+	}
+
+	err = process_file(fd, blocksize, size_limit, skip_offset);
+	close(fd);
+	return err;
 }
