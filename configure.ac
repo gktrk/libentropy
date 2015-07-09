@@ -25,9 +25,12 @@ AC_SEARCH_LIBS([log2], [m])
 AC_SEARCH_LIBS([isnormal], [m])
 AC_CHECK_FUNCS([posix_fadvise lseek64])
 AC_SEARCH_LIBS([ext2fs_open], [ext2fs])
+AC_SEARCH_LIBS([__gmpz_init], [gmp])
 
 AC_CONFIG_FILES([Makefile
                  lib/Makefile
                  include/Makefile
-                 src/Makefile])
+                 src/Makefile
+                 tools/Makefile
+                 tools/ssss/Makefile])
 AC_OUTPUT
