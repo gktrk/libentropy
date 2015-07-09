@@ -105,6 +105,26 @@ void warning(char *msg)
     fprintf(stderr, "%sWARNING: %s.\n", isatty(2) ? "\a" : "", msg);
 }
 
+static void try_mlock(void) {
+#if ! NOMLOCK
+  if (mlockall(MCL_CURRENT | MCL_FUTURE) < 0)
+    switch(errno) {
+    case ENOMEM:
+      warning("couldn't get memory lock (ENOMEM, try to adjust RLIMIT_MEMLOCK!)");
+      break;
+    case EPERM:
+      warning("couldn't get memory lock (EPERM, try UID 0!)");
+      break;
+    case ENOSYS:
+      warning("couldn't get memory lock (ENOSYS, kernel doesn't allow page locking)");
+      break;
+    default:
+      warning("couldn't get memory lock");
+      break;
+    }
+#endif
+}
+
 /* field arithmetic routines */
 
 int field_size_valid(int deg)
@@ -541,23 +561,8 @@ int main(int argc, char *argv[])
   char *name;
   int i;
 
-#if ! NOMLOCK
-  if (mlockall(MCL_CURRENT | MCL_FUTURE) < 0)
-    switch(errno) {
-    case ENOMEM:
-      warning("couldn't get memory lock (ENOMEM, try to adjust RLIMIT_MEMLOCK!)");
-      break;
-    case EPERM:
-      warning("couldn't get memory lock (EPERM, try UID 0!)");
-      break;
-    case ENOSYS:
-      warning("couldn't get memory lock (ENOSYS, kernel doesn't allow page locking)");
-      break;
-    default:
-      warning("couldn't get memory lock");
-      break;
-    }
-#endif
+  /* Try to pin data in memory to avoid swaping to disk */
+  try_mlock();
 
   if (getuid() != geteuid())
     seteuid(getuid());
