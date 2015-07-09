@@ -105,6 +105,22 @@ void warning(char *msg)
     fprintf(stderr, "%sWARNING: %s.\n", isatty(2) ? "\a" : "", msg);
 }
 
+static void usage(const char *pname, int show_version) {
+  if (strstr(pname, "split"))
+    puts("Split secrets using Shamir's Secret Sharing Scheme.\n"
+	 "\n"
+	 "ssss-split -t threshold -n shares [-w token] [-s level]"
+	 " [-x] [-q] [-Q] [-D] [-v]"
+      );
+  else
+    puts("Combine shares using Shamir's Secret Sharing Scheme.\n"
+	 "\n"
+	 "ssss-combine -t threshold [-x] [-q] [-Q] [-D] [-v]");
+  if (show_version)
+    puts("\nVersion: " VERSION);
+  exit(0);
+}
+
 static void try_mlock(void) {
 #if ! NOMLOCK
   if (mlockall(MCL_CURRENT | MCL_FUTURE) < 0)
@@ -593,18 +609,10 @@ int main(int argc, char *argv[])
   if ((name = strrchr(argv[0], '/')) == NULL)
     name = argv[0];
 
+  if (opt_help || opt_showversion)
+    usage(name, opt_showversion);
+
   if (strstr(name, "split")) {
-    if (opt_help || opt_showversion) {
-      puts("Split secrets using Shamir's Secret Sharing Scheme.\n"
-	   "\n"
-	   "ssss-split -t threshold -n shares [-w token] [-s level]"
-	   " [-x] [-q] [-Q] [-D] [-v]"
-	   );
-      if (opt_showversion)
-	puts("\nVersion: " VERSION);
-      exit(0);
-    }
-    
     if (opt_threshold < 2)
       fatal("invalid parameters: invalid threshold value");
 
@@ -620,15 +628,6 @@ int main(int argc, char *argv[])
     split();
   }
   else {
-    if (opt_help || opt_showversion) {
-      puts("Combine shares using Shamir's Secret Sharing Scheme.\n"
-	   "\n"
-	   "ssss-combine -t threshold [-x] [-q] [-Q] [-D] [-v]");
-      if (opt_showversion)
-	puts("\nVersion: " VERSION);
-      exit(0);
-    }
-
     if (opt_threshold < 2)
       fatal("invalid parameters: invalid threshold value");
 
