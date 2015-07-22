@@ -687,7 +687,14 @@ int main(int argc, char *argv[])
     if (opt_token && (strlen(opt_token) > MAXTOKENLEN))
       fatal("invalid parameters: token too long");
 
-    split();
+    /* Figure out where we are reading the data from */
+    if ((optind == argc) ||
+	((optind < argc) && (!strncmp(argv[optind], "-", 1))))
+      /* Read from standard input */
+      split_file(NULL);
+    else
+      /* Read from file(s) */
+      do { split_file(argv[optind++]); } while (optind < argc);
   }
   else {
     if (opt_threshold < 2)
