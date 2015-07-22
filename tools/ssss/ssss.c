@@ -477,10 +477,6 @@ void split(void)
   for(i = 0; i < opt_number; i++) {
     mpz_set_ui(x, i + 1);
     horner(opt_threshold, y, x, (const mpz_t*)coeff);
-    if (opt_token)
-      printf("%s-", opt_token);
-    printf("%0*d-", fmt_len, i + 1);
-    field_print(stdout, y, 1);
   }
   mpz_clear(x);
   mpz_clear(y);
