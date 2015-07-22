@@ -446,7 +446,7 @@ void split(void)
     deg = opt_security ? opt_security : MAXDEGREE;
   }
   if (! opt_security) {
-    opt_security = opt_hex ? 4 * ((strlen(buf) + 1) & ~1): 8 * strlen(buf);
+    opt_security = 8 * buf_len;
     if (! field_size_valid(opt_security))
       fatal("security level invalid (secret too long?)");
     if (! opt_quiet)
