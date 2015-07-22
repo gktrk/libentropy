@@ -47,6 +47,9 @@
 #include <assert.h>
 #include <termios.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <gmp.h>
 
@@ -496,6 +499,80 @@ void split(void)
   for(i = 0; i < opt_threshold; i++)
     mpz_clear(coeff[i]);
   field_deinit();
+}
+
+static int split_file(const char *path_in)
+{
+  int fd_in, *fd_out;
+  char *buf_in, **path_out;
+  char **buf_out;
+  size_t bytes_read, read_size, buf_offset, remaining;
+  unsigned chunk_size;
+  int i, err;
+  const long pagesize = sysconf(_SC_PAGESIZE);
+
+  if (path_in) {
+    fd_in = open(path_in, O_RDONLY);
+    if (fd_in == -1) {
+      perror("Cannot open input file");
+      return errno;
+    }
+    /*
+     * We will be creating N new files, one for each share.
+     * Do necessary allocations.
+     */
+    path_out = malloc(sizeof(char *) * opt_number);
+    fd_out = malloc(sizeof(int) * opt_number);
+    buf_out = malloc(sizeof(char *) * opt_number);
+    /*
+     * The format of the file names of each share will be:
+     * <original file name>.<share index>
+     */
+    for (i = 0; i < opt_number; i++) {
+      path_out[i] = malloc(strlen(path_in) + 20);
+      memset((path_out[i]) + strlen(path_in), 0, 20);
+      sprintf(path_out[i], "%s.%d", path_in, i);
+      fd_out[i] = open(path_out[i], O_RDWR | O_CREAT, 0600);
+      buf_out[i] = malloc(pagesize);
+    }
+    buf_in = malloc(pagesize);
+
+    /*
+     * Read a buffer at a time. Then partition a buffer
+     * into chunks of 128 bytes. We will split each chunk
+     * separately for an entire buffer.
+     *
+     * If the buffer size is less than 128 bytes,
+     * we do NOT perform any padding.
+     */
+    read_size = pagesize;
+    do {
+      bytes_read = read(fd_in, buf_in, read_size);
+      remaining = bytes_read;
+      buf_offset = 0;
+
+      /* Processes the buffer chunk by chunk */
+      do {
+	chunk_size = (remaining > MAXTOKENLEN) ? MAXTOKENLEN : remaining;
+	split(buf_in, buf_out, chunk_size, buf_offset);
+	remaining -= chunk_size;
+	buf_offset += chunk_size;
+      } while (remaining > 0);
+
+      /* Write the buffers into files*/
+      for (i = 0; i < opt_number; i++) {
+	write(fd_out[i], buf_out[i], bytes_read);
+      }
+    } while (bytes_read > 0);
+
+    /* Close files */
+    for (i = 0; i < opt_number; i++)
+      close(fd_out[i]);
+  } else {
+    /* TODO: Implement stdin split */
+    fd_in = STDIN_FILENO;
+    fd_out = STDOUT_FILENO;
+  }
 }
 
 /* Prompt for shares, calculate the secret */
