@@ -444,18 +444,7 @@ void split(void)
     fprintf(stderr, " security level.\n");
     
     deg = opt_security ? opt_security : MAXDEGREE;
-    fprintf(stderr, "Enter the secret, ");
-    if (opt_hex)
-      fprintf(stderr, "as most %d hex digits: ", deg / 4);
-    else 
-      fprintf(stderr, "at most %d ASCII characters: ", deg / 8);
   }
-  tcsetattr(0, TCSANOW, &echo_off);
-  if (! fgets(buf, sizeof(buf), stdin))
-    fatal("I/O error while reading secret");
-  tcsetattr(0, TCSANOW, &echo_orig);
-  buf[strcspn(buf, "\r\n")] = '\0';
-
   if (! opt_security) {
     opt_security = opt_hex ? 4 * ((strlen(buf) + 1) & ~1): 8 * strlen(buf);
     if (! field_size_valid(opt_security))
