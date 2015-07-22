@@ -435,13 +435,13 @@ void split(void)
   int deg, i;
   for(fmt_len = 1, i = opt_number; i >= 10; i /= 10, fmt_len++);
   if (! opt_quiet) {
-    printf("Generating shares using a (%d,%d) scheme with ", 
+    fprintf(stderr, "Generating shares using a (%d,%d) scheme with ",
 	   opt_threshold, opt_number);
     if (opt_security)
-      printf("a %d bit", opt_security);
+      fprintf(stderr, "a %d bit", opt_security);
     else
-      printf("dynamic");
-    printf(" security level.\n");
+      fprintf(stderr, "dynamic");
+    fprintf(stderr, " security level.\n");
     
     deg = opt_security ? opt_security : MAXDEGREE;
     fprintf(stderr, "Enter the secret, ");
