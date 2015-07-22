@@ -427,11 +427,10 @@ int restore_secret(int n, mpz_t (*A)[n], mpz_t b[])
 
 /* Prompt for a secret, generate shares for it */
 
-void split(void)
+void split(const char *buf_in, char **buf_out, unsigned buf_len, size_t buf_offset)
 {
   unsigned int fmt_len;
   mpz_t x, y, coeff[opt_threshold];
-  char buf[MAXLINELEN];
   int deg, i;
   for(fmt_len = 1, i = opt_number; i >= 10; i /= 10, fmt_len++);
   if (! opt_quiet) {
@@ -456,7 +455,7 @@ void split(void)
   field_init(opt_security);
 
   mpz_init(coeff[0]);
-  field_import(coeff[0], buf, opt_hex);
+  mpz_import(coeff[0], buf_len, 1, 1, 0, 0, buf_in + buf_offset);
 
   if (opt_diffusion) {
     if (degree >= 64)
@@ -477,6 +476,7 @@ void split(void)
   for(i = 0; i < opt_number; i++) {
     mpz_set_ui(x, i + 1);
     horner(opt_threshold, y, x, (const mpz_t*)coeff);
+    mpz_export(buf_out[i] + buf_offset, NULL, 1, 1, 0, 0, y);
   }
   mpz_clear(x);
   mpz_clear(y);
