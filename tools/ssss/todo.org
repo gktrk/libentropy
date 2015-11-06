@@ -1,0 +1,5 @@
+* Tasks
+** TODO Implement file name arguments
+** TODO Implement splitting file into buffers
+** TODO Implement splitting buffers into chunks
+** TODO Implement per-chunk processing
