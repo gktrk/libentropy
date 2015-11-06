@@ -3,6 +3,6 @@ compiler: gcc
 
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install -y e2fslibs e2fslibs-dev
+  - sudo apt-get install -y e2fslibs e2fslibs-dev libgmp-dev
 
 script: autoreconf -i && ./configure && make
