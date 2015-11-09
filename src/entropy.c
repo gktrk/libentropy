@@ -64,6 +64,26 @@ static unsigned long long parse_ull(const char *str, int *err)
 	return ret;
 }
 
+static int print_result(const struct entropy_ctx *ctx, unsigned long long offset,
+			int offset_flag)
+{
+	int err = 0;
+
+	switch (ctx->ec_algo) {
+	case LIBENTROPY_ALGO_SHANNON:
+		if (offset_flag)
+			fprintf(stdout, "%llu, %f\n", offset,
+				ctx->ec_result_float);
+		else
+			fprintf(stdout, "%f\n", ctx->ec_result_float);
+		break;
+	default:
+		err = -1;
+	};
+
+	return err;
+}
+
 static int process_file(int fd, unsigned long long blocksize,
 			unsigned long long size_limit,
 			unsigned long long skip_offset)
@@ -141,8 +161,7 @@ static int process_file(int fd, unsigned long long blocksize,
 		if (blocksize && !remaining) {
 			libentropy_calculate(&ctx);
 			if (ctx.ec_status == LIBENTROPY_STATUS_SUCCESS) {
-				fprintf(stdout, "%llu, %f\n", offset,
-					ctx.ec_result_float);
+				print_result(&ctx, offset, 1);
 				memset(&ctx, 0, sizeof(struct entropy_ctx));
 			} else {
 				fprintf(stderr, "%s():%d: %s: %d\n",
@@ -161,7 +180,7 @@ static int process_file(int fd, unsigned long long blocksize,
 	if (!blocksize) {
 		libentropy_calculate(&ctx);
 		if (ctx.ec_status == LIBENTROPY_STATUS_SUCCESS)
-			fprintf(stdout, "%f\n", ctx.ec_result_float);
+			print_result(&ctx, 0, 0);
 	}
 
 	return 0;
