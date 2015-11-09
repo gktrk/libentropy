@@ -142,7 +142,7 @@ static int process_file(int fd, unsigned long long blocksize,
 			libentropy_calculate(&ctx);
 			if (ctx.ec_status == LIBENTROPY_STATUS_SUCCESS) {
 				fprintf(stdout, "%llu, %f\n", offset,
-					ctx.ec_entropy);
+					ctx.ec_result_float);
 				memset(&ctx, 0, sizeof(struct entropy_ctx));
 			} else {
 				fprintf(stderr, "%s():%d: %s: %d\n",
@@ -161,7 +161,7 @@ static int process_file(int fd, unsigned long long blocksize,
 	if (!blocksize) {
 		libentropy_calculate(&ctx);
 		if (ctx.ec_status == LIBENTROPY_STATUS_SUCCESS)
-			fprintf(stdout, "%f\n", ctx.ec_entropy);
+			fprintf(stdout, "%f\n", ctx.ec_result_float);
 	}
 
 	return 0;

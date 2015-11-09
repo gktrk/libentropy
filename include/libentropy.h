@@ -36,7 +36,9 @@ struct entropy_ctx {
 	unsigned long long ec_freq_table[256];
 	unsigned long long ec_symbol_count;
 	unsigned long ec_algo;
-	double ec_entropy;
+	union {
+		double ec_result_float;
+	};
 	int ec_status;
 };
 

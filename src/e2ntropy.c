@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 				libentropy_update_ctx(&ctx, buf, fs->blocksize);
 				libentropy_calculate(&ctx);
 				fprintf(stdout, "%llu, %f\n",
-					block, ctx.ec_entropy);
+					block, ctx.ec_result_float);
 			}
 		}
 	}

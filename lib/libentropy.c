@@ -61,7 +61,7 @@ void libentropy_calculate(struct entropy_ctx *ctx)
 {
 	switch (ctx->ec_algo) {
 	case LIBENTROPY_ALGO_SHANNON:
-		ctx->ec_entropy = shannon_entropy(ctx->ec_freq_table,
+		ctx->ec_result_float = shannon_entropy(ctx->ec_freq_table,
 						ctx->ec_symbol_count,
 						&ctx->ec_status);
 		break;
