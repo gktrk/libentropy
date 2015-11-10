@@ -88,7 +88,8 @@ static int print_result(const libentropy_result_t result,
 
 static int process_file(int fd, unsigned long long blocksize,
 			unsigned long long size_limit,
-			unsigned long long skip_offset)
+			unsigned long long skip_offset,
+			libentropy_algo_t algo)
 {
 	struct entropy_ctx ctx;
 	void *buf;
@@ -97,7 +98,6 @@ static int process_file(int fd, unsigned long long blocksize,
 	unsigned long long offset = 0;
 	unsigned long long remaining = 0;
 	unsigned long long read_size;
-	libentropy_algo_t algo = LIBENTROPY_ALGO_SHANNON;
 	libentropy_result_t result;
 	int err;
 	const long pagesize = sysconf(_SC_PAGESIZE);
@@ -196,6 +196,7 @@ main(int argc, char *argv[])
 	unsigned long long blocksize = 0;
 	unsigned long long size_limit = 0;
 	unsigned long long skip_offset = 0;
+	libentropy_algo_t algo = LIBENTROPY_ALGO_SHANNON;
 	int c, err;
 
 	while ((c = getopt(argc, argv, "b:hl:s:")) != -1) {
@@ -235,7 +236,8 @@ main(int argc, char *argv[])
 	if ((optind == argc) ||
 		((optind < argc) && (!strncmp(argv[optind], "-", 1)))) {
 		fd = STDIN_FILENO;
-		err = process_file(fd, blocksize, size_limit, skip_offset);
+		err = process_file(fd, blocksize, size_limit,
+				skip_offset, algo);
 		close(fd);
 		return err;
 	} else {
@@ -245,7 +247,8 @@ main(int argc, char *argv[])
 				perror("Cannot open file");
 				return errno;
 			}
-			err = process_file(fd, blocksize, size_limit, skip_offset);
+			err = process_file(fd, blocksize, size_limit,
+					skip_offset, algo);
 			close(fd);
 			if (err)
 			return err;
