@@ -37,7 +37,8 @@ extern int opting, opterr, optopt;
 
 static void usage(const char *pname) {
 	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [-l size limit]"
-		" [-s skip offset] [filename]\n", pname);
+		" [-s skip offset] [-m metric] [filename]\n"
+		"\tMetrics: entropy[default], chisq\n", pname);
 	exit(-1);
 }
 
@@ -62,6 +63,19 @@ static unsigned long long parse_ull(const char *str, int *err)
 		*err = -ERANGE;
 	*err = 0;
 	return ret;
+}
+
+static libentropy_algo_t parse_metric(const char *str, int *err)
+{
+	*err = 0;
+	if (strcmp(str, "entropy") == 0)
+		return LIBENTROPY_ALGO_SHANNON;
+	else if (strcmp(str, "chisq") == 0)
+		return LIBENTROPY_ALGO_CHISQ;
+	else
+		*err = -1;
+	/* Assume entropy metric, in case caller doesn't check err */
+	return LIBENTROPY_ALGO_SHANNON;
 }
 
 static int print_result(const libentropy_result_t result,
@@ -199,7 +213,7 @@ main(int argc, char *argv[])
 	libentropy_algo_t algo = LIBENTROPY_ALGO_SHANNON;
 	int c, err;
 
-	while ((c = getopt(argc, argv, "b:hl:s:")) != -1) {
+	while ((c = getopt(argc, argv, "b:hl:m:s:")) != -1) {
 		switch (c) {
 		case 'b':
 			blocksize = parse_ull(optarg, &err);
@@ -215,6 +229,14 @@ main(int argc, char *argv[])
 				fprintf(stderr, "Invalid size limit (%s):"
 					" %s\n",
 					optarg, strerror(err));
+				usage(argv[0]);
+			}
+			break;
+		case 'm':
+			algo = parse_metric(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid metric (%s)\n",
+					optarg);
 				usage(argv[0]);
 			}
 			break;
