@@ -105,6 +105,6 @@ void libentropy_calculate(struct entropy_ctx *ctx)
 					&ctx->ec_status);
 		break;
 	default:
-		ctx->ec_status = LIBENTROPY_STATUS_UNKOWN_ALGO;
+		ctx->ec_status = LIBENTROPY_STATUS_UNKNOWN_ALGO;
 	};
 }
