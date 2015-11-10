@@ -24,6 +24,7 @@
 
 enum {
 	LIBENTROPY_ALGO_SHANNON,
+	LIBENTROPY_ALGO_CHISQ,
 };
 
 enum {

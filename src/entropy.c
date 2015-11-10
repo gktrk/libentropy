@@ -71,6 +71,7 @@ static int print_result(const struct entropy_ctx *ctx, unsigned long long offset
 
 	switch (ctx->ec_algo) {
 	case LIBENTROPY_ALGO_SHANNON:
+	case LIBENTROPY_ALGO_CHISQ:
 		if (offset_flag)
 			fprintf(stdout, "%llu, %f\n", offset,
 				ctx->ec_result_float);
