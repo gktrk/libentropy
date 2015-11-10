@@ -51,11 +51,27 @@ int main(int argc, char *argv[])
 	libentropy_algo_t algo;
 	unsigned long i;
 	double entropy, chisq;
+	double entropy_min = - 1, chisq_max = -1;
 	int err;
 
-	if (argc != 2)
+	if ((argc < 2) || (argc > 4))
 		usage(argv[0]);
 	device_path = argv[1];
+	if (argc > 2) {
+		entropy_min = atof(argv[2]);
+		if ((entropy_min < 0) || (entropy_min > 8.0)) {
+			fprintf(stderr, "Invalid minimum entropy: %f\n",
+				entropy_min);
+			return -1;
+		}
+	}
+	if (argc > 3) {
+		chisq_max = atof(argv[3]);
+		if (chisq_max < 0)
+			fprintf(stderr, "Invalid maximum chisq: %f\n",
+				chisq_max);
+			return -1;
+	}
 
 	/* Open the file system */
 	err = ext2fs_open(device_path, flags, 0, 0, unix_io_manager, &fs);
@@ -118,12 +134,21 @@ int main(int argc, char *argv[])
 				}
 				memset(&ctx, 0, sizeof(struct entropy_ctx));
 				libentropy_update_ctx(&ctx, buf, fs->blocksize);
+
 				algo = LIBENTROPY_ALGO_SHANNON;
 				result = libentropy_calculate(&ctx, algo, &err);
 				entropy = result.r_float;
 				algo = LIBENTROPY_ALGO_CHISQ;
 				result = libentropy_calculate(&ctx, algo, &err);
 				chisq = result.r_float;
+
+				if ((entropy_min > 0) &&
+					(entropy < entropy_min))
+					continue;
+				if ((chisq_max > 0) &&
+					(chisq > chisq_max))
+					continue;
+
 				fprintf(stdout, "%llu, %f, %f\n",
 					block, entropy, chisq);
 			}
