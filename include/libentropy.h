@@ -44,6 +44,6 @@ struct entropy_ctx {
 
 void libentropy_update_ctx(struct entropy_ctx *ctx,
 			const void *buf, size_t buf_len);
-libentropy_result_t libentropy_calculate(struct entropy_ctx *ctx,
+libentropy_result_t libentropy_calculate(const struct entropy_ctx *ctx,
 					libentropy_algo_t algo, int *err);
 #endif /*__LIBENTROPY_H__*/

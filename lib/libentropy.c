@@ -20,7 +20,7 @@
 #include "libentropy.h"
 #include <math.h>
 
-static double shannon_entropy(unsigned long long freq_table[256],
+static double shannon_entropy(const unsigned long long freq_table[256],
 			unsigned long long symbol_count,
 			int *err)
 {
@@ -58,7 +58,7 @@ static double shannon_entropy(unsigned long long freq_table[256],
  *    X^2 = SUM { (Observed_i)^2 } / Expected - N
  *    |  Expected: N / 256
  */
-static double chisq(unsigned long long freq_table[256],
+static double chisq(const unsigned long long freq_table[256],
 		unsigned long long symbol_count, int *err)
 {
 	const double N = (double)symbol_count;
@@ -91,7 +91,7 @@ void libentropy_update_ctx(struct entropy_ctx *ctx,
 	ctx->ec_symbol_count += buf_len;
 }
 
-libentropy_result_t libentropy_calculate(struct entropy_ctx *ctx,
+libentropy_result_t libentropy_calculate(const struct entropy_ctx *ctx,
 					libentropy_algo_t algo, int *err)
 {
 	libentropy_result_t result;
