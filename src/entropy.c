@@ -38,7 +38,7 @@ extern int opting, opterr, optopt;
 static void usage(const char *pname) {
 	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [-l size limit]"
 		" [-s skip offset] [-m metric] [filename]\n"
-		"\tMetrics: entropy[default], chisq\n", pname);
+		"\tMetrics: entropy[default], chisq, bfd\n", pname);
 	exit(-1);
 }
 
@@ -72,6 +72,8 @@ static libentropy_algo_t parse_metric(const char *str, int *err)
 		return LIBENTROPY_ALGO_SHANNON;
 	else if (strcmp(str, "chisq") == 0)
 		return LIBENTROPY_ALGO_CHISQ;
+	else if (strcmp(str, "bfd") == 0)
+		return LIBENTROPY_ALGO_BFD;
 	else
 		*err = -1;
 	/* Assume entropy metric, in case caller doesn't check err */
@@ -82,6 +84,8 @@ static int print_result(const libentropy_result_t result,
 			libentropy_algo_t algo, unsigned long long offset,
 			int offset_flag)
 {
+	unsigned long long *bfd;
+	unsigned i;
 	int err = 0;
 
 	switch (algo) {
@@ -92,6 +96,11 @@ static int print_result(const libentropy_result_t result,
 				result.r_float);
 		else
 			fprintf(stdout, "%f\n", result.r_float);
+		break;
+	case LIBENTROPY_ALGO_BFD:
+		bfd = result.r_ptr;
+		for (i = 0; i < 256; i++)
+			fprintf(stdout, "%u, %llu\n", i, bfd[i]);
 		break;
 	default:
 		err = -1;
