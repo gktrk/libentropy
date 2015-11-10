@@ -24,11 +24,13 @@
 
 typedef union {
 	double r_float;
+	const void *r_ptr;
 } libentropy_result_t;
 
 typedef enum {
 	LIBENTROPY_ALGO_SHANNON,
 	LIBENTROPY_ALGO_CHISQ,
+	LIBENTROPY_ALGO_BFD,
 } libentropy_algo_t;
 
 enum {

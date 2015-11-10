@@ -105,6 +105,11 @@ libentropy_result_t libentropy_calculate(const struct entropy_ctx *ctx,
 		result.r_float = chisq(ctx->ec_freq_table,
 				ctx->ec_symbol_count, err);
 		break;
+	case LIBENTROPY_ALGO_BFD:
+		/* No work is required for this one, we already have it */
+		result.r_ptr = ctx->ec_freq_table;
+		*err = LIBENTROPY_STATUS_SUCCESS;
+		break;
 	default:
 		*err = LIBENTROPY_STATUS_UNKNOWN_ALGO;
 	};
