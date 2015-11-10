@@ -91,20 +91,23 @@ void libentropy_update_ctx(struct entropy_ctx *ctx,
 	ctx->ec_symbol_count += buf_len;
 }
 
-void libentropy_calculate(struct entropy_ctx *ctx)
+libentropy_result_t libentropy_calculate(struct entropy_ctx *ctx,
+					libentropy_algo_t algo, int *err)
 {
-	switch (ctx->ec_algo) {
+	libentropy_result_t result;
+
+	switch (algo) {
 	case LIBENTROPY_ALGO_SHANNON:
-		ctx->ec_result_float = shannon_entropy(ctx->ec_freq_table,
-						ctx->ec_symbol_count,
-						&ctx->ec_status);
+		result.r_float = shannon_entropy(ctx->ec_freq_table,
+						ctx->ec_symbol_count, err);
 		break;
 	case LIBENTROPY_ALGO_CHISQ:
-		ctx->ec_result_float = chisq(ctx->ec_freq_table,
-					ctx->ec_symbol_count,
-					&ctx->ec_status);
+		result.r_float = chisq(ctx->ec_freq_table,
+				ctx->ec_symbol_count, err);
 		break;
 	default:
-		ctx->ec_status = LIBENTROPY_STATUS_UNKNOWN_ALGO;
+		*err = LIBENTROPY_STATUS_UNKNOWN_ALGO;
 	};
+
+	return result;
 }

@@ -22,10 +22,14 @@
 
 #include <stdlib.h>
 
-enum {
+typedef union {
+	double r_float;
+} libentropy_result_t;
+
+typedef enum {
 	LIBENTROPY_ALGO_SHANNON,
 	LIBENTROPY_ALGO_CHISQ,
-};
+} libentropy_algo_t;
 
 enum {
 	LIBENTROPY_STATUS_SUCCESS,
@@ -36,14 +40,10 @@ enum {
 struct entropy_ctx {
 	unsigned long long ec_freq_table[256];
 	unsigned long long ec_symbol_count;
-	unsigned long ec_algo;
-	union {
-		double ec_result_float;
-	};
-	int ec_status;
 };
 
 void libentropy_update_ctx(struct entropy_ctx *ctx,
 			const void *buf, size_t buf_len);
-void libentropy_calculate(struct entropy_ctx *ctl);
+libentropy_result_t libentropy_calculate(struct entropy_ctx *ctx,
+					libentropy_algo_t algo, int *err);
 #endif /*__LIBENTROPY_H__*/

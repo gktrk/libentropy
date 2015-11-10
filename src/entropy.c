@@ -64,19 +64,20 @@ static unsigned long long parse_ull(const char *str, int *err)
 	return ret;
 }
 
-static int print_result(const struct entropy_ctx *ctx, unsigned long long offset,
+static int print_result(const libentropy_result_t result,
+			libentropy_algo_t algo, unsigned long long offset,
 			int offset_flag)
 {
 	int err = 0;
 
-	switch (ctx->ec_algo) {
+	switch (algo) {
 	case LIBENTROPY_ALGO_SHANNON:
 	case LIBENTROPY_ALGO_CHISQ:
 		if (offset_flag)
 			fprintf(stdout, "%llu, %f\n", offset,
-				ctx->ec_result_float);
+				result.r_float);
 		else
-			fprintf(stdout, "%f\n", ctx->ec_result_float);
+			fprintf(stdout, "%f\n", result.r_float);
 		break;
 	default:
 		err = -1;
@@ -96,6 +97,8 @@ static int process_file(int fd, unsigned long long blocksize,
 	unsigned long long offset = 0;
 	unsigned long long remaining = 0;
 	unsigned long long read_size;
+	libentropy_algo_t algo = LIBENTROPY_ALGO_SHANNON;
+	libentropy_result_t result;
 	int err;
 	const long pagesize = sysconf(_SC_PAGESIZE);
 
@@ -121,7 +124,6 @@ static int process_file(int fd, unsigned long long blocksize,
 	/* Process one page of data at a time */
 	buf = malloc(pagesize);
 	memset(&ctx, 0, sizeof(struct entropy_ctx));
-	ctx.ec_algo = LIBENTROPY_ALGO_SHANNON;
 	do {
 		/* If we hit the file size limit, break out of loop */
 		if ((size_limit) && (total_bytes_read >= size_limit))
@@ -160,15 +162,15 @@ static int process_file(int fd, unsigned long long blocksize,
 		 * and print it.
 		 */
 		if (blocksize && !remaining) {
-			libentropy_calculate(&ctx);
-			if (ctx.ec_status == LIBENTROPY_STATUS_SUCCESS) {
-				print_result(&ctx, offset, 1);
+			result = libentropy_calculate(&ctx, algo, &err);
+			if (err == LIBENTROPY_STATUS_SUCCESS) {
+				print_result(result, algo, offset, 1);
 				memset(&ctx, 0, sizeof(struct entropy_ctx));
 			} else {
 				fprintf(stderr, "%s():%d: %s: %d\n",
 					__func__, __LINE__,
 					"Entropy calculation failed",
-					ctx.ec_status);
+					err);
 				free(buf);
 				close(fd);
 				return -1;
@@ -179,9 +181,9 @@ static int process_file(int fd, unsigned long long blocksize,
 
 	/* Calculate entropy */
 	if (!blocksize) {
-		libentropy_calculate(&ctx);
-		if (ctx.ec_status == LIBENTROPY_STATUS_SUCCESS)
-			print_result(&ctx, 0, 0);
+		result = libentropy_calculate(&ctx, algo, &err);
+		if (err == LIBENTROPY_STATUS_SUCCESS)
+			print_result(result, algo, 0, 0);
 	}
 
 	return 0;

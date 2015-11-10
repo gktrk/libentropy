@@ -47,6 +47,8 @@ int main(int argc, char *argv[])
 	blk64_t max_blocks;
 	int block_nbytes;
 	struct entropy_ctx ctx;
+	libentropy_result_t result;
+	libentropy_algo_t algo = LIBENTROPY_ALGO_SHANNON;
 	unsigned long i;
 	int err;
 
@@ -115,9 +117,9 @@ int main(int argc, char *argv[])
 				}
 				memset(&ctx, 0, sizeof(struct entropy_ctx));
 				libentropy_update_ctx(&ctx, buf, fs->blocksize);
-				libentropy_calculate(&ctx);
+				result = libentropy_calculate(&ctx, algo, &err);
 				fprintf(stdout, "%llu, %f\n",
-					block, ctx.ec_result_float);
+					block, result.r_float);
 			}
 		}
 	}
