@@ -48,8 +48,9 @@ int main(int argc, char *argv[])
 	int block_nbytes;
 	struct entropy_ctx ctx;
 	libentropy_result_t result;
-	libentropy_algo_t algo = LIBENTROPY_ALGO_SHANNON;
+	libentropy_algo_t algo;
 	unsigned long i;
+	double entropy, chisq;
 	int err;
 
 	if (argc != 2)
@@ -117,9 +118,14 @@ int main(int argc, char *argv[])
 				}
 				memset(&ctx, 0, sizeof(struct entropy_ctx));
 				libentropy_update_ctx(&ctx, buf, fs->blocksize);
+				algo = LIBENTROPY_ALGO_SHANNON;
 				result = libentropy_calculate(&ctx, algo, &err);
-				fprintf(stdout, "%llu, %f\n",
-					block, result.r_float);
+				entropy = result.r_float;
+				algo = LIBENTROPY_ALGO_CHISQ;
+				result = libentropy_calculate(&ctx, algo, &err);
+				chisq = result.r_float;
+				fprintf(stdout, "%llu, %f, %f\n",
+					block, entropy, chisq);
 			}
 		}
 	}
