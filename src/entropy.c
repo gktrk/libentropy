@@ -1,5 +1,5 @@
 /**
- * Copyright 2015 Gokturk Yuksek
+ * Copyright 2016 Gokturk Yuksek
  *
  * This file is part of libentropy.
  *
@@ -21,6 +21,7 @@
 
 #include "config.h"
 #include "libentropy.h"
+#include "entropy.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,11 +81,103 @@ static libentropy_algo_t parse_metric(const char *str, int *err)
 	return LIBENTROPY_ALGO_SHANNON;
 }
 
+static void set_default_opts(struct entropy_opts *opts)
+{
+	opts->blocksize = 0;
+	opts->size_limit = 0;
+	opts->skip_offset = 0;
+	opts->algo = LIBENTROPY_ALGO_SHANNON;
+}
+
+static int parse_args(int argc, char * const argv[], struct entropy_opts *opts)
+{
+	int c, err = 0;
+	unsigned i, j;
+
+	if (!opts)
+		return -1;
+	set_default_opts(opts);
+
+	while ((c = getopt(argc, argv, "b:hl:m:s:")) != -1) {
+		switch (c) {
+		case 'b':
+			opts->blocksize = parse_ull(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid blocksize (%s): %s\n",
+					optarg, strerror(err));
+				usage(argv[0]);
+			}
+			break;
+		case 'l':
+			opts->size_limit = parse_ull(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid size limit (%s):"
+					" %s\n",
+					optarg, strerror(err));
+				usage(argv[0]);
+			}
+			break;
+		case 'm':
+			opts->algo = parse_metric(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid metric (%s)\n",
+					optarg);
+				usage(argv[0]);
+			}
+			break;
+		case 's':
+			opts->skip_offset = parse_ull(optarg, &err);
+			if (err) {
+				fprintf(stderr, "Invalid skip offset (%s):"
+					" %s\n",
+					optarg, strerror(err));
+				usage(argv[0]);
+			}
+			break;
+		case 'h':
+		default:
+			usage(argv[0]);
+		};
+	}
+
+	if ((optind == argc) ||
+		((optind < argc) && (!strncmp(argv[optind], "-", 1)))) {
+		opts->file_count = 1;
+		opts->fds = calloc(opts->file_count, sizeof(*opts->fds));
+		opts->fds[0] = STDIN_FILENO;
+	} else {
+		opts->file_count = argc - optind;
+		opts->fds = calloc(opts->file_count, sizeof(*opts->fds));
+		if (!opts->fds) {
+			err = errno;
+			perror("Unable to allocate mem for fds");
+			return err;
+		}
+
+		for (i = 0; i < opts->file_count; i++)
+		{
+			opts->fds[i] = open(argv[optind++], O_RDONLY);
+			if (opts->fds[i] == -1) {
+				fprintf(stderr, "%s():%d: Unable to open file"
+					" %s: %s\n", __func__, __LINE__,
+					argv[optind - 1], strerror(err));
+				err = errno;
+				for (j = 0; j < i; j++)
+					close(opts->fds[j]);
+				free(opts->fds);
+				return err;
+			}
+		}
+	}
+
+	return err;
+}
+
 static int print_result(const libentropy_result_t result,
 			libentropy_algo_t algo, unsigned long long offset,
 			int offset_flag)
 {
-	unsigned long long *bfd;
+	const unsigned long long *bfd;
 	unsigned i;
 	int err = 0;
 
@@ -215,75 +308,21 @@ static int process_file(int fd, unsigned long long blocksize,
 int
 main(int argc, char *argv[])
 {
-	int fd;
-	unsigned long long blocksize = 0;
-	unsigned long long size_limit = 0;
-	unsigned long long skip_offset = 0;
-	libentropy_algo_t algo = LIBENTROPY_ALGO_SHANNON;
-	int c, err;
+	struct entropy_opts opts;
+	unsigned i;
+	int err;
 
-	while ((c = getopt(argc, argv, "b:hl:m:s:")) != -1) {
-		switch (c) {
-		case 'b':
-			blocksize = parse_ull(optarg, &err);
-			if (err) {
-				fprintf(stderr, "Invalid blocksize (%s): %s\n",
-					optarg, strerror(err));
-				usage(argv[0]);
-			}
-			break;
-		case 'l':
-			size_limit = parse_ull(optarg, &err);
-			if (err) {
-				fprintf(stderr, "Invalid size limit (%s):"
-					" %s\n",
-					optarg, strerror(err));
-				usage(argv[0]);
-			}
-			break;
-		case 'm':
-			algo = parse_metric(optarg, &err);
-			if (err) {
-				fprintf(stderr, "Invalid metric (%s)\n",
-					optarg);
-				usage(argv[0]);
-			}
-			break;
-		case 's':
-			skip_offset = parse_ull(optarg, &err);
-			if (err) {
-				fprintf(stderr, "Invalid skip offset (%s):"
-					" %s\n",
-					optarg, strerror(err));
-				usage(argv[0]);
-			}
-			break;
-		case 'h':
-		default:
-			usage(argv[0]);
-		};
-	}
-
-	if ((optind == argc) ||
-		((optind < argc) && (!strncmp(argv[optind], "-", 1)))) {
-		fd = STDIN_FILENO;
-		err = process_file(fd, blocksize, size_limit,
-				skip_offset, algo);
-		close(fd);
+	err = parse_args(argc, argv, &opts);
+	if (err)
 		return err;
-	} else {
-		do {
-			fd = open(argv[optind++], O_RDONLY);
-			if (fd == -1) {
-				perror("Cannot open file");
-				return errno;
-			}
-			err = process_file(fd, blocksize, size_limit,
-					skip_offset, algo);
-			close(fd);
-			if (err)
-			return err;
-		} while (optind < argc);
+
+	for (i = 0; i < opts.file_count; i++)
+	{
+		err = process_file(opts.fds[i], opts.blocksize, opts.size_limit,
+				opts.skip_offset, opts.algo);
+		close(opts.fds[i]);
 	}
+
+	free(opts.fds);
 	return 0;
 }
