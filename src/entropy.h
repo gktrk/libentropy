@@ -29,6 +29,9 @@ struct entropy_opts {
 	unsigned long long size_limit;
 	unsigned long long skip_offset;
 	libentropy_algo_t algo;
+
+	/* Options specific to Binary Frequency Distribution (bfd) */
+	unsigned char bfd_bin_size;
 };
 
 #endif /*__ENTROPY_H__*/

@@ -30,15 +30,33 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <errno.h>
 #include <limits.h>
 
 extern char *optarg;
 extern int opting, opterr, optopt;
 
+/* Check if the 8-bit number is a power of 2 */
+static inline unsigned __is_pow2_u8(unsigned char v)
+{
+	unsigned char r = 0;
+
+	/* Count the number of 1's in the number */
+	while(v) {
+		if (v & 0x01)
+			r++;
+		v >>= 1;
+	}
+
+	/* If only one bit is set, it's a power of 2 */
+	return (r == 1);
+}
+
 static void usage(const char *pname) {
 	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [-l size limit]"
-		" [-s skip offset] [-m metric] [filename]\n"
+		" [-s skip offset] [-m metric]"
+		" [--bfd-bin-size size[=1]] [filename]\n"
 		"\tMetrics: entropy[default], chisq, bfd\n", pname);
 	exit(-1);
 }
@@ -87,18 +105,35 @@ static void set_default_opts(struct entropy_opts *opts)
 	opts->size_limit = 0;
 	opts->skip_offset = 0;
 	opts->algo = LIBENTROPY_ALGO_SHANNON;
+
+	opts->bfd_bin_size = 1;
 }
 
 static int parse_args(int argc, char * const argv[], struct entropy_opts *opts)
 {
 	int c, err = 0;
+	int option_index;
 	unsigned i, j;
+
+	enum {
+		LONG_OPT_BFD_BIN_SIZE = 256,
+	};
+	const struct option long_options[] = {
+		{
+			.name = "bfd-bin-size",
+			.has_arg = required_argument,
+			.flag = 0,
+			.val = LONG_OPT_BFD_BIN_SIZE,
+		},
+		{ 0, 0, 0, 0, },
+	};
 
 	if (!opts)
 		return -1;
 	set_default_opts(opts);
 
-	while ((c = getopt(argc, argv, "b:hl:m:s:")) != -1) {
+	while ((c = getopt_long(argc, argv, "b:hl:m:s:", long_options,
+						&option_index)) != -1) {
 		switch (c) {
 		case 'b':
 			opts->blocksize = parse_ull(optarg, &err);
@@ -131,6 +166,15 @@ static int parse_args(int argc, char * const argv[], struct entropy_opts *opts)
 				fprintf(stderr, "Invalid skip offset (%s):"
 					" %s\n",
 					optarg, strerror(err));
+				usage(argv[0]);
+			}
+			break;
+		case LONG_OPT_BFD_BIN_SIZE:
+			opts->bfd_bin_size = (unsigned char)
+				(parse_ull(optarg, &err) & 0xFF);
+			if (err || (!__is_pow2_u8(opts->bfd_bin_size))) {
+				fprintf(stderr, "Invalid bfd bin size (%s)\n",
+					optarg);
 				usage(argv[0]);
 			}
 			break;
@@ -175,10 +219,11 @@ static int parse_args(int argc, char * const argv[], struct entropy_opts *opts)
 
 static int print_result(const libentropy_result_t result,
 			libentropy_algo_t algo, unsigned long long offset,
-			int offset_flag)
+			int offset_flag, unsigned char bfd_bin_size)
 {
 	const unsigned long long *bfd;
-	unsigned i;
+	unsigned long long sum;
+	unsigned i, j;
 	int err = 0;
 
 	switch (algo) {
@@ -192,8 +237,12 @@ static int print_result(const libentropy_result_t result,
 		break;
 	case LIBENTROPY_ALGO_BFD:
 		bfd = result.r_ptr;
-		for (i = 0; i < 256; i++)
-			fprintf(stdout, "%u, %llu\n", i, bfd[i]);
+		for (i = 0; i < 256; i += bfd_bin_size) {
+			sum = 0;
+			for (j = 0; j < bfd_bin_size; j++)
+				sum += bfd[i + j];
+			fprintf(stdout, "%u, %llu\n", i, sum);
+		}
 		break;
 	default:
 		err = -1;
@@ -205,7 +254,8 @@ static int print_result(const libentropy_result_t result,
 static int process_file(int fd, unsigned long long blocksize,
 			unsigned long long size_limit,
 			unsigned long long skip_offset,
-			libentropy_algo_t algo)
+			libentropy_algo_t algo,
+			unsigned char bfd_bin_size)
 {
 	struct entropy_ctx ctx;
 	void *buf;
@@ -280,7 +330,8 @@ static int process_file(int fd, unsigned long long blocksize,
 		if (blocksize && !remaining) {
 			result = libentropy_calculate(&ctx, algo, &err);
 			if (err == LIBENTROPY_STATUS_SUCCESS) {
-				print_result(result, algo, offset, 1);
+				print_result(result, algo, offset, 1,
+					bfd_bin_size);
 				memset(&ctx, 0, sizeof(struct entropy_ctx));
 			} else {
 				fprintf(stderr, "%s():%d: %s: %d\n",
@@ -299,7 +350,7 @@ static int process_file(int fd, unsigned long long blocksize,
 	if (!blocksize) {
 		result = libentropy_calculate(&ctx, algo, &err);
 		if (err == LIBENTROPY_STATUS_SUCCESS)
-			print_result(result, algo, 0, 0);
+			print_result(result, algo, 0, 0, bfd_bin_size);
 	}
 
 	return 0;
@@ -319,7 +370,7 @@ main(int argc, char *argv[])
 	for (i = 0; i < opts.file_count; i++)
 	{
 		err = process_file(opts.fds[i], opts.blocksize, opts.size_limit,
-				opts.skip_offset, opts.algo);
+				opts.skip_offset, opts.algo, opts.bfd_bin_size);
 		close(opts.fds[i]);
 	}
 
