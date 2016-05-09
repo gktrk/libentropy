@@ -237,6 +237,8 @@ static int print_result(const libentropy_result_t result,
 		break;
 	case LIBENTROPY_ALGO_BFD:
 		bfd = result.r_ptr;
+		if (offset_flag)
+			fprintf(stdout, "%llu,", offset);
 		for (i = 0; i < (256 - bfd_bin_size); i += bfd_bin_size) {
 			sum = 0;
 			for (j = 0; j < bfd_bin_size; j++)
