@@ -237,12 +237,17 @@ static int print_result(const libentropy_result_t result,
 		break;
 	case LIBENTROPY_ALGO_BFD:
 		bfd = result.r_ptr;
-		for (i = 0; i < 256; i += bfd_bin_size) {
+		for (i = 0; i < (256 - bfd_bin_size); i += bfd_bin_size) {
 			sum = 0;
 			for (j = 0; j < bfd_bin_size; j++)
 				sum += bfd[i + j];
-			fprintf(stdout, "%u, %llu\n", i, sum);
+			fprintf(stdout, "%llu,", sum);
 		}
+		/* Handle the last iteration outside the loop */
+		sum = 0;
+		for (j = 0; j < bfd_bin_size; j++)
+			sum += bfd[i + j];
+		fprintf(stdout, "%llu\n", sum);
 		break;
 	default:
 		err = -1;
