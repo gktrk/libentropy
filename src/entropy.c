@@ -317,8 +317,7 @@ static int process_file(int fd, unsigned long long blocksize,
 		 */
 		if ((size_limit) &&
 			((total_bytes_read + read_size) > size_limit))
-			read_size -= (total_bytes_read + read_size) %
-				size_limit;
+			read_size = size_limit - total_bytes_read;
 		/* Read data */
 		bytes_read = read(fd, buf, read_size);
 		/* Get some bookkeeping done */
