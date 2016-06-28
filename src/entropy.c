@@ -55,7 +55,7 @@ static inline unsigned __is_pow2_u8(unsigned char v)
 
 static void usage(const char *pname) {
 	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [-l size limit]"
-		" [-s skip offset] [-m metric]"
+		" [-s skip offset] [-m metric] [--precision[=6]]"
 		" [--bfd-bin-size size[=1]] [filename]\n"
 		"\tMetrics: entropy[default], chisq, bfd\n", pname);
 	exit(-1);
@@ -104,6 +104,7 @@ static void set_default_opts(struct entropy_opts *opts)
 	opts->blocksize = 0;
 	opts->size_limit = 0;
 	opts->skip_offset = 0;
+	opts->precision = 6;
 	opts->algo = LIBENTROPY_ALGO_SHANNON;
 
 	opts->bfd_bin_size = 1;
@@ -117,6 +118,7 @@ static int parse_args(int argc, char * const argv[], struct entropy_opts *opts)
 
 	enum {
 		LONG_OPT_BFD_BIN_SIZE = 256,
+		LONG_OPT_PRECISION,
 	};
 	const struct option long_options[] = {
 		{
@@ -124,6 +126,12 @@ static int parse_args(int argc, char * const argv[], struct entropy_opts *opts)
 			.has_arg = required_argument,
 			.flag = 0,
 			.val = LONG_OPT_BFD_BIN_SIZE,
+		},
+		{
+			.name = "precision",
+			.has_arg = required_argument,
+			.flag = 0,
+			.val = LONG_OPT_PRECISION,
 		},
 		{ 0, 0, 0, 0, },
 	};
@@ -178,6 +186,14 @@ static int parse_args(int argc, char * const argv[], struct entropy_opts *opts)
 				usage(argv[0]);
 			}
 			break;
+		case LONG_OPT_PRECISION:
+			opts->precision = atoi(optarg);
+			if (opts->precision < 0) {
+				fprintf(stderr, "Invalid precision value"
+					" (%s)\n", optarg);
+				usage(argv[0]);
+			}
+			break;
 		case 'h':
 		default:
 			usage(argv[0]);
@@ -219,7 +235,8 @@ static int parse_args(int argc, char * const argv[], struct entropy_opts *opts)
 
 static int print_result(const libentropy_result_t result,
 			libentropy_algo_t algo, unsigned long long offset,
-			int offset_flag, unsigned char bfd_bin_size)
+			int offset_flag, int precision,
+			unsigned char bfd_bin_size)
 {
 	const unsigned long long *bfd;
 	unsigned long long sum;
@@ -230,10 +247,10 @@ static int print_result(const libentropy_result_t result,
 	case LIBENTROPY_ALGO_SHANNON:
 	case LIBENTROPY_ALGO_CHISQ:
 		if (offset_flag)
-			fprintf(stdout, "%llu, %f\n", offset,
+			fprintf(stdout, "%llu, %.*f\n", offset, precision,
 				result.r_float);
 		else
-			fprintf(stdout, "%f\n", result.r_float);
+			fprintf(stdout, "%.*f\n", precision, result.r_float);
 		break;
 	case LIBENTROPY_ALGO_BFD:
 		bfd = result.r_ptr;
@@ -262,6 +279,7 @@ static int process_file(int fd, unsigned long long blocksize,
 			unsigned long long size_limit,
 			unsigned long long skip_offset,
 			libentropy_algo_t algo,
+			int precision,
 			unsigned char bfd_bin_size)
 {
 	struct entropy_ctx ctx;
@@ -336,7 +354,7 @@ static int process_file(int fd, unsigned long long blocksize,
 		if (blocksize && !remaining) {
 			result = libentropy_calculate(&ctx, algo, &err);
 			if (err == LIBENTROPY_STATUS_SUCCESS) {
-				print_result(result, algo, offset, 1,
+				print_result(result, algo, offset, 1, precision,
 					bfd_bin_size);
 				memset(&ctx, 0, sizeof(struct entropy_ctx));
 			} else {
@@ -356,7 +374,8 @@ static int process_file(int fd, unsigned long long blocksize,
 	if (!blocksize) {
 		result = libentropy_calculate(&ctx, algo, &err);
 		if (err == LIBENTROPY_STATUS_SUCCESS)
-			print_result(result, algo, 0, 0, bfd_bin_size);
+			print_result(result, algo, 0, 0, precision,
+				bfd_bin_size);
 	}
 
 	return 0;
@@ -376,7 +395,8 @@ main(int argc, char *argv[])
 	for (i = 0; i < opts.file_count; i++)
 	{
 		err = process_file(opts.fds[i], opts.blocksize, opts.size_limit,
-				opts.skip_offset, opts.algo, opts.bfd_bin_size);
+				opts.skip_offset, opts.algo, opts.precision,
+				opts.bfd_bin_size);
 		close(opts.fds[i]);
 	}
 
