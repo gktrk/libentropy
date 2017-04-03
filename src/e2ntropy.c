@@ -1,5 +1,5 @@
 /**
- * Copyright 2015 Gokturk Yuksek
+ * Copyright 2015,2017 Gokturk Yuksek
  *
  * This file is part of libentropy.
  *
