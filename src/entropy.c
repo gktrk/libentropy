@@ -37,22 +37,6 @@
 extern char *optarg;
 extern int opting, opterr, optopt;
 
-/* Check if the 8-bit number is a power of 2 */
-static inline unsigned __is_pow2_u8(unsigned char v)
-{
-	unsigned char r = 0;
-
-	/* Count the number of 1's in the number */
-	while(v) {
-		if (v & 0x01)
-			r++;
-		v >>= 1;
-	}
-
-	/* If only one bit is set, it's a power of 2 */
-	return (r == 1);
-}
-
 static void usage(const char *pname) {
 	fprintf(stdout, "Usage: %s [-b blocksize] [-h] [-l size limit]"
 		" [-s skip offset] [-m metric] [--precision[=6]]"
@@ -180,11 +164,6 @@ static int parse_args(int argc, char * const argv[], struct entropy_opts *opts)
 		case LONG_OPT_BFD_BIN_SIZE:
 			opts->bfd_bin_size = (unsigned char)
 				(parse_ull(optarg, &err) & 0xFF);
-			if (err || (!__is_pow2_u8(opts->bfd_bin_size))) {
-				fprintf(stderr, "Invalid bfd bin size (%s)\n",
-					optarg);
-				usage(argv[0]);
-			}
 			break;
 		case LONG_OPT_PRECISION:
 			opts->precision = atoi(optarg);
@@ -264,7 +243,7 @@ static int print_result(const libentropy_result_t result,
 		}
 		/* Handle the last iteration outside the loop */
 		sum = 0;
-		for (j = 0; j < bfd_bin_size; j++)
+		for (j = 0; j < (256 - i); j++)
 			sum += bfd[i + j];
 		fprintf(stdout, "%llu\n", sum);
 		break;
