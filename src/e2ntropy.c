@@ -23,13 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static inline int ext2fs_has_group_desc_csum(ext2_filsys fs)
-{
-        return EXT2_HAS_RO_COMPAT_FEATURE(fs->super,
-					EXT4_FEATURE_RO_COMPAT_GDT_CSUM |
-					EXT4_FEATURE_RO_COMPAT_METADATA_CSUM);
-}
-
 static void usage(const char *pname)
 {
 	fprintf(stderr, "Usage: %s <device path>\n", pname);

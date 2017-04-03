@@ -37,9 +37,9 @@ AC_SEARCH_LIBS([isnormal], [m])
 AC_CHECK_FUNCS([posix_fadvise lseek64])
 AC_CHECK_FUNCS([getopt_long])
 
-if test x$enable_e2ntropy != xno; then
-	AC_SEARCH_LIBS([ext2fs_open], [ext2fs])
-fi
+AS_IF([test "x$enable_e2ntropy" != "xno"], [
+	PKG_CHECK_MODULES([EXT2FS], [ext2fs >= 1.43.3])
+])
 
 
 AC_CONFIG_FILES([Makefile
