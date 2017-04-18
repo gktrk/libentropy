@@ -29,10 +29,16 @@ static void usage(const char *pname)
 	exit(-1);
 }
 
+static inline int open_device(char *device_path, ext2_filsys *fs)
+{
+	int flags = EXT2_FLAG_64BITS | EXT2_FLAG_JOURNAL_DEV_OK;
+
+	return ext2fs_open(device_path, flags, 0, 0, unix_io_manager, fs);
+}
+
 int main(int argc, char *argv[])
 {
 	ext2_filsys fs = NULL;
-	int flags = EXT2_FLAG_64BITS | EXT2_FLAG_JOURNAL_DEV_OK;
 	int bg_flags = 0;
 	char *buf = NULL;
 	char *device_path;
@@ -67,11 +73,12 @@ int main(int argc, char *argv[])
 	}
 
 	/* Open the file system */
-	err = ext2fs_open(device_path, flags, 0, 0, unix_io_manager, &fs);
+	err = open_device(device_path, &fs);
 	if (err) {
 		fprintf(stderr, "Unable to open device: ", device_path);
 		return err;
 	}
+
 	/* Determine maximum number of possbile blocks */
 	err = ext2fs_get_device_size2(device_path, fs->blocksize, &max_blocks);
 	if (err) {
