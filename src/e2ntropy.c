@@ -36,6 +36,12 @@ static inline int open_device(char *device_path, ext2_filsys *fs)
 	return ext2fs_open(device_path, flags, 0, 0, unix_io_manager, fs);
 }
 
+static inline int get_device_size(char *device_path, unsigned int blocksize,
+				blk64_t *size)
+{
+	return ext2fs_get_device_size2(device_path, blocksize, size);
+}
+
 int main(int argc, char *argv[])
 {
 	ext2_filsys fs = NULL;
@@ -80,7 +86,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Determine maximum number of possbile blocks */
-	err = ext2fs_get_device_size2(device_path, fs->blocksize, &max_blocks);
+	err = get_device_size(device_path, fs->blocksize, &max_blocks);
 	if (err) {
 		fprintf(stderr, "Unable to get device size: %s\n", device_path);
 		goto out;
