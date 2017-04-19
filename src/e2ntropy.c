@@ -18,6 +18,7 @@
  */
 
 #include "libentropy.h"
+#include "libe2ntropy.h"
 
 #include <ext2fs/ext2fs.h>
 #include <stdio.h>
@@ -29,32 +30,18 @@ static void usage(const char *pname)
 	exit(-1);
 }
 
-static inline int open_device(char *device_path, ext2_filsys *fs)
-{
-	int flags = EXT2_FLAG_64BITS | EXT2_FLAG_JOURNAL_DEV_OK;
-
-	return ext2fs_open(device_path, flags, 0, 0, unix_io_manager, fs);
-}
-
-static inline int get_device_size(char *device_path, unsigned int blocksize,
-				blk64_t *size)
-{
-	return ext2fs_get_device_size2(device_path, blocksize, size);
-}
-
 int main(int argc, char *argv[])
 {
-	ext2_filsys fs = NULL;
-	int bg_flags = 0;
-	char *buf = NULL;
-	char *device_path;
-	blk64_t block, j;
-	blk64_t max_blocks;
-	int block_nbytes;
+	struct e2ntropy_ctx e2ctx;
+	struct e2ntropy_iter e2iter;
 	struct entropy_ctx ctx;
 	libentropy_result_t result;
 	libentropy_algo_t algo;
+	char *buf = NULL;
+	char *device_path;
 	unsigned long i;
+	unsigned int blocksize;
+	blk64_t block;
 	double entropy, chisq;
 	double entropy_min = - 1, chisq_max = -1;
 	int err;
@@ -79,90 +66,53 @@ int main(int argc, char *argv[])
 	}
 
 	/* Open the file system */
-	err = open_device(device_path, &fs);
+	err = e2ntropy_open(&e2ctx, device_path);
 	if (err) {
 		fprintf(stderr, "Unable to open device: ", device_path);
 		return err;
 	}
+	blocksize = e2ntropy_iter_blocksize(&e2ctx);
 
-	/* Determine maximum number of possbile blocks */
-	err = get_device_size(device_path, fs->blocksize, &max_blocks);
-	if (err) {
-		fprintf(stderr, "Unable to get device size: %s\n", device_path);
-		goto out;
-	}
-	/* Read the block bitmaps into memory */
-	ext2fs_read_block_bitmap(fs);
-	/* Bytes needed for the block bitmap of a group */
-	block_nbytes = EXT2_CLUSTERS_PER_GROUP(fs->super) / 8;
 	/*
 	 * Allocate space to hold unallocated file system
 	 * blocks for entropy calculation
 	 */
-	buf = malloc(fs->blocksize);
+	buf = malloc(blocksize);
+	if (!buf) {
+		err = errno;
+		fprintf(stderr, "%s():%d: malloc() failed.\n",
+			__func__, __LINE__);
+		goto out;
+	}
 
-	/* Iterate over block group */
-	for (i = 0; i < fs->group_desc_count; i++) {
-		/*
-		 * Watch out for BLOCK_UNINIT
-		 *
-		 * If the block bitmap of the group is uninitialized,
-		 * meaning it has never been touched by the file system,
-		 * it's very likely that it's filled with 0s. Note
-		 * that this may not necessarily be true for reformatting
-		 * a used drive. We will skip those for now.
-		 *
-		 * Also keep in mind that this is an optional feature for
-		 * mkfs and may not have been activated during formatting.
-		 * So the absence of BLOCK_UNINIT does not guarantee
-		 * that the blocks have been touched by the fs.
-		 */
-		if (ext2fs_has_group_desc_csum(fs))
-			bg_flags = ext2fs_bg_flags(fs, i);
-		if ((bg_flags & EXT2_BG_BLOCK_UNINIT) == EXT2_BG_BLOCK_UNINIT)
+	/* Init the iterator */
+	err = e2ntropy_iter_init(&e2ctx, &e2iter);
+
+	while (!(err = e2ntropy_iter_next(&e2iter, blocksize, buf))) {
+		memset(&ctx, 0, sizeof(struct entropy_ctx));
+		libentropy_update_ctx(&ctx, buf, blocksize);
+
+		algo = LIBENTROPY_ALGO_SHANNON;
+		result = libentropy_calculate(&ctx, algo, &err);
+		entropy = result.r_float;
+		algo = LIBENTROPY_ALGO_CHISQ;
+		result = libentropy_calculate(&ctx, algo, &err);
+		chisq = result.r_float;
+
+		if ((entropy_min > 0) &&
+			(entropy < entropy_min))
 			continue;
-		/*
-		 * Iterate over the block bitmap and calculate
-		 * the entropy of unused blocks
-		 */
-		for (j = 0; j < fs->super->s_clusters_per_group; j++) {
-			block = (i * fs->super->s_clusters_per_group) + j;
-			if (block >= max_blocks)
-				break;
-			if (!ext2fs_test_block_bitmap2(fs->block_map, block)) {
-				err = io_channel_read_blk64(fs->io, block,
-							1, buf);
-				if (err) {
-					fprintf(stderr,
-						"Unable to read block: %llu\n",
-						block);
-					goto out;
-				}
-				memset(&ctx, 0, sizeof(struct entropy_ctx));
-				libentropy_update_ctx(&ctx, buf, fs->blocksize);
+		if ((chisq_max > 0) &&
+			(chisq > chisq_max))
+			continue;
 
-				algo = LIBENTROPY_ALGO_SHANNON;
-				result = libentropy_calculate(&ctx, algo, &err);
-				entropy = result.r_float;
-				algo = LIBENTROPY_ALGO_CHISQ;
-				result = libentropy_calculate(&ctx, algo, &err);
-				chisq = result.r_float;
-
-				if ((entropy_min > 0) &&
-					(entropy < entropy_min))
-					continue;
-				if ((chisq_max > 0) &&
-					(chisq > chisq_max))
-					continue;
-
-				fprintf(stdout, "%llu, %f, %f\n",
-					block, entropy, chisq);
-			}
-		}
+		fprintf(stdout, "%llu, %f, %f\n",
+			block = e2ntropy_iter_block_index(&e2iter),
+			entropy, chisq);
 	}
 
 out:
 	free(buf);
-	ext2fs_close(fs);
+	e2ntropy_close(&e2ctx);
 	return err;
 }
