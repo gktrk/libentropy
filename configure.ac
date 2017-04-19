@@ -9,7 +9,7 @@ AM_INIT_AUTOMAKE([foreign])
 
 AC_ARG_ENABLE([e2ntropy],
 	[AS_HELP_STRING([--enable-e2ntropy],
-		"Enable e2ntropy tool for ext4")],
+		"Enable e2ntropy library and tool for ext4")],
 		[], [enable_e2ntropy=no])
 AM_CONDITIONAL([ENABLE_E2NTROPY], [test x$enable_e2ntropy != xno])
 
