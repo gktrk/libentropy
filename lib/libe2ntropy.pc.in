@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libe2ntropy
+Description: A library to measure various information theoretical properties of unused blocks in ext family file systems
+Version: @VERSION@
+
+Cflags: -I${includedir}
+Libs: -L${libdir} -le2ntropy
+Requires.private: ext2fs >= 1.43.3

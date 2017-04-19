@@ -6,6 +6,7 @@ AC_INIT([libentropy], [0.0.3], [gokturk@binghamton.edu])
 AC_CONFIG_SRCDIR([src/entropy.c])
 AC_CONFIG_HEADERS([include/config.h])
 AM_INIT_AUTOMAKE([foreign])
+PKG_INSTALLDIR
 
 AC_ARG_ENABLE([e2ntropy],
 	[AS_HELP_STRING([--enable-e2ntropy],
@@ -44,6 +45,12 @@ AS_IF([test "x$enable_e2ntropy" != "xno"], [
 
 AC_CONFIG_FILES([Makefile
                  lib/Makefile
+                 lib/libentropy.pc
                  include/Makefile
                  src/Makefile])
+AS_IF([test "x$enable_e2ntropy" != "xno"], [
+	    AC_CONFIG_FILES([
+                 lib/libe2ntropy.pc])
+])
+
 AC_OUTPUT
