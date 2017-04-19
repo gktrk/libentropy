@@ -3,8 +3,23 @@ sudo: required
 language: c
 compiler: gcc
 
-before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y e2fslibs e2fslibs-dev
-
-script: autoreconf -i && ./configure && make
+env:
+  global:
+    - PKGCONFIG_PV="0.29" PKGCONFIG_P="pkg-config-${PKGCONFIG_PV}" E2FSPROGS_PV="1.43.4" E2FSPROGS_P="e2fsprogs-${E2FSPROGS_PV}"
+  matrix:
+    - MYCONFARGS=""
+    - MYCONFARGS="--enable-e2ntropy"
+before_script:
+  - wget -qO - "https://pkgconfig.freedesktop.org/releases/${PKGCONFIG_P}.tar.gz" | tar xz
+  - wget -qO - "https://downloads.sourceforge.net/project/e2fsprogs/e2fsprogs/v${E2FSPROGS_PV}/${E2FSPROGS_P}.tar.gz" | tar xz
+  - pushd "${PKGCONFIG_P}"
+  - ./configure --prefix=/usr
+  - make
+  - sudo make DESTDIR=/ install
+  - popd
+  - pushd "${E2FSPROGS_P}"
+  - ./configure --prefix=/usr --enable-elf-shlibs
+  - make
+  - sudo make DESTDIR=/ install-libs
+  - popd
+script: autoreconf -i && ./configure ${MYCONFARGS} && make
