@@ -19,6 +19,7 @@
 
 #include "libentropy.h"
 #include <math.h>
+#include <errno.h>
 
 static double shannon_entropy(const unsigned long long freq_table[256],
 			unsigned long long symbol_count,
@@ -115,4 +116,62 @@ libentropy_result_t libentropy_calculate(const struct entropy_ctx *ctx,
 	};
 
 	return result;
+}
+
+int libentropy_batch(const struct entropy_ctx *ctx,
+		struct entropy_batch_request *req)
+{
+	unsigned char i;
+
+	for (i = 0; i < req->count; i++)
+		req->results[i] = libentropy_calculate(ctx, req->algos[i],
+						&req->errors[i]);
+
+	return 0;
+}
+
+struct entropy_batch_request *
+libentropy_alloc_batch_request(unsigned char count, int *err)
+{
+	struct entropy_batch_request *req = NULL;
+
+	*err = -ENOMEM;
+	req = malloc(sizeof(*req));
+	if (!req)
+		return NULL;
+	req->count = count;
+
+	req->algos = calloc(count, sizeof(libentropy_algo_t));
+	if (!req->algos) {
+		free(req);
+		return NULL;
+	}
+
+	req->results = calloc(count, sizeof(libentropy_result_t));
+	if (!req->results) {
+		free(req->algos);
+		free(req);
+		return NULL;
+	}
+
+	req->errors = calloc(count, sizeof(int));
+	if (!req->errors) {
+		free(req->results);
+		free(req->algos);
+		free(req);
+		return NULL;
+	}
+
+	*err = 0;
+	return req;
+}
+
+void libentropy_free_batch_request(struct entropy_batch_request *req)
+{
+	if (req) {
+		free(req->errors);
+		free(req->results);
+		free(req->algos);
+	}
+	free(req);
 }

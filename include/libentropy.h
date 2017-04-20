@@ -44,8 +44,21 @@ struct entropy_ctx {
 	unsigned long long ec_symbol_count;
 };
 
+struct entropy_batch_request {
+	unsigned char count;
+	libentropy_algo_t *algos;
+	libentropy_result_t *results;
+	int *errors;
+};
+
 void libentropy_update_ctx(struct entropy_ctx *ctx,
 			const void *buf, size_t buf_len);
 libentropy_result_t libentropy_calculate(const struct entropy_ctx *ctx,
 					libentropy_algo_t algo, int *err);
+extern struct entropy_batch_request *
+libentropy_alloc_batch_request(unsigned char count, int *err);
+extern void libentropy_free_batch_request(struct entropy_batch_request *req);
+extern int libentropy_batch(const struct entropy_ctx *ctx,
+		struct entropy_batch_request *req);
+
 #endif /*__LIBENTROPY_H__*/
