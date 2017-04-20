@@ -22,6 +22,8 @@
 
 #include <ext2fs/ext2fs.h>
 
+#include "libentropy.h"
+
 struct e2ntropy_ctx {
 	char *device_path;
 	ext2_filsys fs;
@@ -34,6 +36,8 @@ struct e2ntropy_iter {
 	blk64_t bg_offset_next;
 	int bg_flags;
 	blk64_t max_blocks;
+	char *buf;
+	unsigned long long buf_len;
 };
 
 static inline unsigned int e2ntropy_iter_blocksize(struct e2ntropy_ctx *ctx)
@@ -52,6 +56,6 @@ extern void e2ntropy_close(struct e2ntropy_ctx *ctx);
 extern int e2ntropy_iter_init(struct e2ntropy_ctx *ctx,
 			struct e2ntropy_iter *iter);
 extern int e2ntropy_iter_next(struct e2ntropy_iter *iter,
-		unsigned buf_size, void *buf);
+		struct entropy_batch_request *req);
 
 #endif /*__LIBE2NTROPY_H__*/

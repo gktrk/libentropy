@@ -34,13 +34,9 @@ int main(int argc, char *argv[])
 {
 	struct e2ntropy_ctx e2ctx;
 	struct e2ntropy_iter e2iter;
-	struct entropy_ctx ctx;
-	libentropy_result_t result;
-	libentropy_algo_t algo;
-	char *buf = NULL;
+	struct entropy_batch_request *req = NULL;
 	char *device_path;
 	unsigned long i;
-	unsigned int blocksize;
 	blk64_t block;
 	double entropy, chisq;
 	double entropy_min = - 1, chisq_max = -1;
@@ -71,19 +67,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Unable to open device: ", device_path);
 		return err;
 	}
-	blocksize = e2ntropy_iter_blocksize(&e2ctx);
-
-	/*
-	 * Allocate space to hold unallocated file system
-	 * blocks for entropy calculation
-	 */
-	buf = malloc(blocksize);
-	if (!buf) {
-		err = errno;
-		fprintf(stderr, "%s():%d: malloc() failed.\n",
-			__func__, __LINE__);
-		goto out;
-	}
 
 	/* Init the iterator */
 	err = e2ntropy_iter_init(&e2ctx, &e2iter);
@@ -93,16 +76,18 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	while (!(err = e2ntropy_iter_next(&e2iter, blocksize, buf))) {
-		memset(&ctx, 0, sizeof(struct entropy_ctx));
-		libentropy_update_ctx(&ctx, buf, blocksize);
+	req = libentropy_alloc_batch_request(2, &err);
+	if (!req) {
+		fprintf(stderr, "%s():%d: libentropy_alloc_batch_request()"
+			" failed\n", __func__, __LINE__);
+		goto out;
+	}
+	req->algos[0] = LIBENTROPY_ALGO_SHANNON;
+	req->algos[1] = LIBENTROPY_ALGO_CHISQ;
 
-		algo = LIBENTROPY_ALGO_SHANNON;
-		result = libentropy_calculate(&ctx, algo, &err);
-		entropy = result.r_float;
-		algo = LIBENTROPY_ALGO_CHISQ;
-		result = libentropy_calculate(&ctx, algo, &err);
-		chisq = result.r_float;
+	while (!(err = e2ntropy_iter_next(&e2iter, req))) {
+		entropy = req->results[0].r_float;
+		chisq = req->results[1].r_float;
 
 		if ((entropy_min > 0) &&
 			(entropy < entropy_min))
@@ -117,7 +102,7 @@ int main(int argc, char *argv[])
 	}
 
 out:
-	free(buf);
+	libentropy_free_batch_request(req);
 	e2ntropy_close(&e2ctx);
 	return err;
 }

@@ -62,6 +62,7 @@ void e2ntropy_close(struct e2ntropy_ctx *ctx)
 int e2ntropy_iter_init(struct e2ntropy_ctx *ctx, struct e2ntropy_iter *iter)
 {
 	ext2_filsys fs = ctx->fs;
+	void *ret;
 	int err;
 
 	memset(iter, 0, sizeof(*iter));
@@ -78,20 +79,26 @@ int e2ntropy_iter_init(struct e2ntropy_ctx *ctx, struct e2ntropy_iter *iter)
 	/* Read the block bitmaps into memory */
 	ext2fs_read_block_bitmap(fs);
 
+	/* Adjust the internal read buffer */
+	ret = realloc(iter->buf, fs->blocksize);
+	if (!ret) {
+		free(iter->buf);
+		iter->buf = NULL;
+		return -ENOMEM;
+	}
+	iter->buf = ret;
+	iter->buf_len = fs->blocksize;
+
 	return 0;
 }
 
-int e2ntropy_iter_next(struct e2ntropy_iter *iter, unsigned buf_size, void *buf)
+int e2ntropy_iter_next(struct e2ntropy_iter *iter,
+		struct entropy_batch_request *req)
 {
 	struct e2ntropy_ctx *ctx = iter->ctx;
 	ext2_filsys fs = ctx->fs;
 	blk64_t block;
 	int err;
-
-	/* Buffer size must be equal to the blocksize */
-	/* TODO: This limitation can be removed using a bounce buffer */
-	if (buf_size != fs->blocksize)
-		return -EINVAL;
 
 	iter->bg_offset = iter->bg_offset_next;
 try_next_bg:
@@ -156,9 +163,20 @@ try_next_block:
 		goto try_next_block;
 	}
 
-	err = io_channel_read_blk64(fs->io, block, 1, buf);
+	err = io_channel_read_blk64(fs->io, block, 1, iter->buf);
 	if (err)
 		return err;
+
+	if (req) {
+		struct entropy_ctx entropy_ctx;
+
+		memset(&entropy_ctx, 0, sizeof(entropy_ctx));
+		libentropy_update_ctx(&entropy_ctx, iter->buf, iter->buf_len);
+		err = libentropy_batch(&entropy_ctx, req);
+		if (err)
+			return err;
+	}
+
 	iter->bg_offset_next = iter->bg_offset + 1;
 
 	return 0;
