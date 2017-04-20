@@ -87,6 +87,11 @@ int main(int argc, char *argv[])
 
 	/* Init the iterator */
 	err = e2ntropy_iter_init(&e2ctx, &e2iter);
+	if (err) {
+		fprintf(stderr, "%s():%d: e2ntropy_iter_init() failed\n",
+			__func__, __LINE__);
+		goto out;
+	}
 
 	while (!(err = e2ntropy_iter_next(&e2iter, blocksize, buf))) {
 		memset(&ctx, 0, sizeof(struct entropy_ctx));
