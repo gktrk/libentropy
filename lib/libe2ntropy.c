@@ -77,6 +77,8 @@ int e2ntropy_iter_init(struct e2ntropy_ctx *ctx, struct e2ntropy_iter *iter)
 
 	/* Read the block bitmaps into memory */
 	ext2fs_read_block_bitmap(fs);
+
+	return 0;
 }
 
 int e2ntropy_iter_next(struct e2ntropy_iter *iter, unsigned buf_size, void *buf)
