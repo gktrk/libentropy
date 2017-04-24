@@ -92,6 +92,19 @@ int e2ntropy_iter_init(struct e2ntropy_ctx *ctx, struct e2ntropy_iter *iter)
 	return 0;
 }
 
+const char *entropy_iter_get_buffer(struct e2ntropy_iter *iter,
+				int *err)
+{
+	*err = 0;
+
+	if (!iter->buf)
+		*err = io_channel_read_blk64(iter->ctx->fs->io,
+					e2ntropy_iter_block_index(iter),
+					1, iter->buf);
+
+	return iter->buf;
+}
+
 int e2ntropy_iter_next(struct e2ntropy_iter *iter,
 		struct entropy_batch_request *req)
 {
@@ -163,7 +176,7 @@ try_next_block:
 		goto try_next_block;
 	}
 
-	err = io_channel_read_blk64(fs->io, block, 1, iter->buf);
+	entropy_iter_get_buffer(iter, &err);
 	if (err)
 		return err;
 

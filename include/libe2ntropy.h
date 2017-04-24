@@ -55,6 +55,8 @@ extern int e2ntropy_open(struct e2ntropy_ctx *ctx, const char *device_path);
 extern void e2ntropy_close(struct e2ntropy_ctx *ctx);
 extern int e2ntropy_iter_init(struct e2ntropy_ctx *ctx,
 			struct e2ntropy_iter *iter);
+extern const char *entropy_iter_get_buffer(struct e2ntropy_iter *iter,
+					int *err);
 extern int e2ntropy_iter_next(struct e2ntropy_iter *iter,
 		struct entropy_batch_request *req);
 
