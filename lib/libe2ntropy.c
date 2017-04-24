@@ -176,12 +176,12 @@ try_next_block:
 		goto try_next_block;
 	}
 
-	entropy_iter_get_buffer(iter, &err);
-	if (err)
-		return err;
-
 	if (req) {
 		struct entropy_ctx entropy_ctx;
+
+		entropy_iter_get_buffer(iter, &err);
+		if (err)
+			return err;
 
 		memset(&entropy_ctx, 0, sizeof(entropy_ctx));
 		libentropy_update_ctx(&entropy_ctx, iter->buf, iter->buf_len);
