@@ -97,7 +97,7 @@ const char *entropy_iter_get_buffer(struct e2ntropy_iter *iter,
 {
 	*err = 0;
 
-	if (!iter->buf)
+	if (iter->buf)
 		*err = io_channel_read_blk64(iter->ctx->fs->io,
 					e2ntropy_iter_block_index(iter),
 					1, iter->buf);
