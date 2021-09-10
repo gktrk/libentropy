@@ -19,6 +19,9 @@ AM_CONDITIONAL([ENABLE_E2NTROPY], [test x$enable_e2ntropy != xno])
 AC_PROG_CC_C99
 AC_PROG_LIBTOOL
 
+LDFLAGS_AS_NEEDED=
+AX_CHECK_LINK_FLAG([--as-needed], [LDFLAGS_AS_NEEDED="-Wl,--as-needed"])
+AC_SUBST(LDFLAGS_AS_NEEDED)
 
 # Checks for libraries.
 

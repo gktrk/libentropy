@@ -1,4 +1,4 @@
-AM_LDFLAGS = -Wl,--as-needed
+AM_LDFLAGS = @LDFLAGS_AS_NEEDED@
 bin_PROGRAMS = entropy
 entropy_SOURCES = entropy.c
 entropy_CPPFLAGS = -I$(top_srcdir)/include
