@@ -1,5 +1,6 @@
 lib_LTLIBRARIES = libentropy.la
 libentropy_la_SOURCES = libentropy.c libentropy.pc.in
+libentropy_la_CPPFLAGS = -I$(top_srcdir)/include
 libentropy_la_LIBADD = @LIBS@
 pkgconfig_DATA = libentropy.pc
 
